@@ -12,7 +12,7 @@ from torch.utils.data import Dataset
 from deepspeed import zero
 from deepspeed.runtime.zero.partition_parameters import ZeroParamStatus
 import transformers
-from transformers import Trainer, GPTQConfig, deepspeed
+from transformers import Trainer, GPTQConfig, deepspeed,AutoModelForCausalLM,BitsAndBytesConfig
 from transformers.trainer_pt_utils import LabelSmoother
 from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training
 from accelerate.utils import DistributedType
@@ -29,10 +29,10 @@ class ModelArguments:
 @dataclass
 class DataArguments:
     data_path: str = field(
-        default=None, metadata={"help": "Path to the training data."}
+        default="data/processed/train_cmedqa2.jsonl", metadata={"help": "Path to the training data."}
     )
     eval_data_path: str = field(
-        default=None, metadata={"help": "Path to the evaluation data."}
+        default="data/processed/valid_cmedqa2.jsonl", metadata={"help": "Path to the evaluation data."}
     )
     lazy_preprocess: bool = False
 
@@ -42,7 +42,7 @@ class TrainingArguments(transformers.TrainingArguments):
     cache_dir: Optional[str] = field(default=None)
     optim: str = field(default="adamw_torch")
     model_max_length: int = field(
-        default=8192,
+        default=128,
         metadata={
             "help": "Maximum sequence length. Sequences will be right padded (and possibly truncated)."
         },
@@ -297,17 +297,27 @@ def train():
     config.use_cache = False
 
     # Load model and tokenizer
-    model = transformers.AutoModelForCausalLM.from_pretrained(
+    model = AutoModelForCausalLM.from_pretrained(
         model_args.model_name_or_path,
         config=config,
+        load_in_4bit=True,
+        torch_dtype=torch.float16,
         cache_dir=training_args.cache_dir,
         device_map=device_map,
         trust_remote_code=True,
-        quantization_config=GPTQConfig(
-            bits=4, disable_exllama=True
+        quantization_config=BitsAndBytesConfig(
+            load_in_4bit=True,
+            bnb_4bit_compute_dtype=torch.float16,
+            bnb_4bit_use_double_quant=True,
+            bnb_4bit_quant_type="nf4",
+            llm_int8_threshold=6.0,
+            llm_int8_has_fp16_weight=False,
         )
-        if training_args.use_lora and lora_args.q_lora
-        else None,
+        #quantization_config=GPTQConfig(
+        #    bits=4, disable_exllama=True
+        #)
+        #if training_args.use_lora and lora_args.q_lora
+        #else None,
     )
     tokenizer = transformers.AutoTokenizer.from_pretrained(
         model_args.model_name_or_path,
@@ -315,10 +325,11 @@ def train():
         model_max_length=training_args.model_max_length,
         padding_side="right",
         use_fast=False,
+        #llama不支持usefast
         trust_remote_code=True,
     )
     tokenizer.pad_token_id = tokenizer.eod_id
-
+    # QWenTokenizer比较特殊，pad_token_id、bos_token_id、eos_token_id均为None。eod_id对应的token为<|endoftext|>
     if training_args.use_lora:
         if lora_args.q_lora or 'chat' in model_args.model_name_or_path.lower():
             modules_to_save = None

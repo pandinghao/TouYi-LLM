@@ -1,0 +1,41 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "fitune.py",
+            "type": "python",
+            "request": "launch",
+            "program": "finetune.py",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "args": ["--model_name_or_path", "Qwen_model/Qwen/Qwen-7B",
+            "--data_path","data/processed/train_cmedqa2.jsonl",
+            "--bf16" , "True",
+            "--output_dir" ,"output_qwen",
+            "--num_train_epochs"  ,"5",
+            "--per_device_train_batch_size" ,"1",
+            "--per_device_eval_batch_size"  ,"1",
+            "--gradient_accumulation_steps" ,"8", 
+            "--evaluation_strategy" ,"no",
+            "--save_strategy" , "steps",
+            "--save_steps" ,"1000",
+            "--save_total_limit" ,"10",
+            "--learning_rate" ,"3e-4",
+            "--weight_decay" ,"0.1",
+            "--adam_beta2" ,"0.95",
+            "--warmup_ratio" ,"0.01",
+            "--lr_scheduler_type" ,"cosine",
+            "--logging_steps" ,"1" ,
+            "--report_to" ,"none" ,
+            "--model_max_length" ,"16",
+            "--lazy_preprocess" ,"True",
+            "--use_lora",
+            "--q_lora", 
+            "--gradient_checkpointing", 
+            "--deepspeed" ,"finetune/ds_config_zero2.json"]
+        }
+    ]
+}

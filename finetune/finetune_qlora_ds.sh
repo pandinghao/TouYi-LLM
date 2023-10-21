@@ -2,8 +2,8 @@
 export CUDA_DEVICE_MAX_CONNECTIONS=1
 DIR=`pwd`
 
-GPUS_PER_NODE=2
-NNODES=1
+GPUS_PER_NODE=1
+NNODES=2
 NODE_RANK=0
 MASTER_ADDR=localhost
 MASTER_PORT=6002
@@ -22,10 +22,11 @@ DISTRIBUTED_ARGS="
 "
 
 # Remember to use --fp16 instead of --bf16 due to autogptq
+# todo: evaluation_strategy 
 torchrun $DISTRIBUTED_ARGS finetune.py \
     --model_name_or_path $MODEL \
     --data_path $DATA \
-    --fp16 True \
+    --bf16 True \
     --output_dir output_qwen \
     --num_train_epochs 5 \
     --per_device_train_batch_size 1 \
@@ -42,7 +43,7 @@ torchrun $DISTRIBUTED_ARGS finetune.py \
     --lr_scheduler_type "cosine" \
     --logging_steps 1 \
     --report_to "none" \
-    --model_max_length 256 \
+    --model_max_length 16 \
     --lazy_preprocess True \
     --use_lora \
     --q_lora \

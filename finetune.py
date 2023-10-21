@@ -29,10 +29,10 @@ class ModelArguments:
 @dataclass
 class DataArguments:
     data_path: str = field(
-        default="data/processed/train_cmedqa2.jsonl", metadata={"help": "Path to the training data."}
+        default="data/processed/train_cmedqa2_debug.json", metadata={"help": "Path to the training data."}
     )
     eval_data_path: str = field(
-        default="data/processed/valid_cmedqa2.jsonl", metadata={"help": "Path to the evaluation data."}
+        default="data/processed/valid_cmedqa2_debug.json", metadata={"help": "Path to the evaluation data."}
     )
     lazy_preprocess: bool = False
 

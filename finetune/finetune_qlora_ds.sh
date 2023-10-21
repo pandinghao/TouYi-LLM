@@ -2,8 +2,8 @@
 export CUDA_DEVICE_MAX_CONNECTIONS=1
 DIR=`pwd`
 
-GPUS_PER_NODE=1
-NNODES=2
+GPUS_PER_NODE=2
+NNODES=1
 NODE_RANK=0
 MASTER_ADDR=localhost
 MASTER_PORT=6002
@@ -11,7 +11,7 @@ MASTER_PORT=6002
 MODEL="Qwen_model/Qwen/Qwen-7B" # Set the path if you do not want to load from huggingface directly
 # ATTENTION: specify the path to your training data, which should be a json file consisting of a list of conversations.
 # See the section for finetuning in README for more information.
-DATA="path_to_data"
+DATA="data/processed/train_cmedqa2_debug.json"
 
 DISTRIBUTED_ARGS="
     --nproc_per_node $GPUS_PER_NODE \

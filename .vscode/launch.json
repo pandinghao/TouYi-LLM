@@ -2,6 +2,7 @@
     // Use IntelliSense to learn about possible attributes.
     // Hover to view descriptions of existing attributes.
     // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    // only_debug_for_single_card
     "version": "0.2.0",
     "configurations": [
         {
@@ -10,9 +11,9 @@
             "request": "launch",
             "program": "finetune.py",
             "console": "integratedTerminal",
-            "justMyCode": true,
+            "justMyCode": false,
             "args": ["--model_name_or_path", "Qwen_model/Qwen/Qwen-7B",
-            "--data_path","data/processed/train_cmedqa2.jsonl",
+            "--data_path","data/processed/train_cmedqa2_debug.json",
             "--bf16" , "True",
             "--output_dir" ,"output_qwen",
             "--num_train_epochs"  ,"5",

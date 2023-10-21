@@ -2,7 +2,7 @@
 export CUDA_DEVICE_MAX_CONNECTIONS=1
 DIR=`pwd`
 
-MODEL="Qwen/Qwen-7B-Chat-Int4" # Set the path if you do not want to load from huggingface directly
+MODEL="Qwen_model/Qwen/Qwen-7B" # Set the path if you do not want to load from huggingface directly
 # ATTENTION: specify the path to your training data, which should be a json file consisting of a list of conversations.
 # See the section for finetuning in README for more information.
 DATA="path_to_data"
@@ -10,7 +10,7 @@ DATA="path_to_data"
 export CUDA_VISIBLE_DEVICES=0
 
 # Remember to use --fp16 instead of --bf16 due to autogptq
-python Qwen-main/finetune.py \
+python finetune.py \
   --model_name_or_path $MODEL \
   --data_path $DATA \
   --fp16 True \

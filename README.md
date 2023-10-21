@@ -117,23 +117,23 @@ cuda 11.8 及以上
 - 对话
 - 实体识别，统一一个样本一个对话。
 - 关系抽取也一样
-
 - 一个样本对应一个指令（暂定）按比例划分，五个指令每个20%
-    [
-        {
-            "id": "identity_0",
-            "conversations": [
+    
+        [
             {
-                "from": "user",
-                "value": "指令(给定标签范围) + '\qn' + 输入"
-            },
-            {
-                "from": "assistant",
-                "value": "你好,我是一个语言模型，我叫头一。"
+                "id": "identity_0",
+                "conversations": [
+                {
+                    "from": "user",
+                    "value": "指令(给定标签范围) + '\qn' + 输入"
+                },
+                {
+                    "from": "assistant",
+                    "value": "你好,我是一个语言模型，我叫头一。"
+                }
+                ]
             }
-            ]
-        }
-    ]
+        ]
 # 训练
 
 - qlora (hugginface trainer)

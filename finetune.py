@@ -267,21 +267,22 @@ def train():
         training_args,
         lora_args,
     ) = parser.parse_args_into_dataclasses()
-    print(training_args)
+    #print(training_args)
     # This serves for single-gpu qlora.
     if getattr(training_args, 'deepspeed', None) and int(os.environ.get("WORLD_SIZE", 1))==1:
         training_args.distributed_state.distributed_type = DistributedType.DEEPSPEED
-    print(training_args.distributed_state.distributed_type)
+    #print(training_args.distributed_state.distributed_type)
     compute_dtype = (
         torch.float16
         if training_args.fp16
         else (torch.bfloat16 if training_args.bf16 else torch.float32)
     )
-
+    
     local_rank = training_args.local_rank
 
     device_map = None
     world_size = int(os.environ.get("WORLD_SIZE", 1))
+    training_args.ddp_find_unused_parameters = False
     ddp = world_size != 1
     if lora_args.q_lora:
         device_map = {"": int(os.environ.get("LOCAL_RANK") or 0)} if ddp else None

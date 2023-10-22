@@ -1,3 +1,3 @@
-#安装pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
+#安装torch pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
 pip install -r requirements.txt
-python Qwen_down.py
+#安装千问base python Qwen_down.py

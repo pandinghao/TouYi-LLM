@@ -152,5 +152,8 @@ cuda 11.8 及以上
 
 
 # 学习资料
-
+huggingface trainer https://huggingface.co/docs/transformers/main/en/main_classes/trainer
 PEFT:https://zhuanlan.zhihu.com/p/649776098
+
+# 常见trainer参数解析
+--optim paged_adamw_32bit (优化器记录)通过设置--optim paged_adamw_32bit，来使用内存页面优化。这是transformers的Trainer中自带的一个超参数。大模型微调使用这个操作还是可以，但不是必须的。

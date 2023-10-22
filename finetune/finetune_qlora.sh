@@ -20,32 +20,34 @@ DISTRIBUTED_ARGS="
     --master_addr $MASTER_ADDR \
     --master_port $MASTER_PORT
 "
-
-# Remember to use --fp16 instead of --bf16 due to autogptq
-# todo: evaluation_strategy 
 torchrun $DISTRIBUTED_ARGS finetune.py \
-    --model_name_or_path $MODEL \
-    --data_path $DATA \
-    --fp16 True \
     --output_dir output_qwen \
-    --num_train_epochs 5 \
-    --per_device_train_batch_size 2 \
+    --model_name_or_path Qwen_model/Qwen/Qwen-7B \
+    --data_path data/processed/train_cmedqa2.json \
+    --num_train_epochs 1 \
+    --per_device_train_batch_size 3 \
     --per_device_eval_batch_size 1 \
-    --gradient_accumulation_steps 8 \
-    --evaluation_strategy "no" \
-    --save_strategy "steps" \
-    --save_steps 1000 \
-    --save_total_limit 10 \
-    --learning_rate 3e-4 \
-    --weight_decay 0.1 \
-    --adam_beta2 0.95 \
-    --warmup_ratio 0.01 \
-    --lr_scheduler_type "cosine" \
-    --logging_steps 1 \
-    --report_to "none" \
+    --gradient_accumulation_steps 2 \
+    --evaluation_strategy no \
+    --learning_rate 2e-4 \
     --model_max_length 1024 \
-    --lazy_preprocess True \
     --use_lora \
     --q_lora \
+    --save_steps 1000 \
+    --save_total_limit 3 \
+    --lr_scheduler_type constant_with_warmup \
+    --warmup_ratio 0.01 \
+    --lora_r 64 \
+    --lora_alpha 16 \
+    --lora_dropout 0.05 \
     --gradient_checkpointing \
-    --deepspeed finetune/ds_config_zero2.json
+    --disable_tqdm False \
+    --optim paged_adamw_32bit \
+    --seed 42 \
+    --fp16 True \
+    --report_to tensorboard \
+    --dataloader_num_workers 0 \
+    --save_strategy steps \
+    --weight_decay 0.1 \
+    --max_grad_norm 0.3 \
+    --remove_unused_columns false

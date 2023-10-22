@@ -9,7 +9,6 @@ DATA="path_to_data"
 
 export CUDA_VISIBLE_DEVICES=0
 
-# Remember to use --fp16 instead of --bf16 due to autogptq
 python finetune.py \
   --model_name_or_path $MODEL \
   --data_path $DATA \

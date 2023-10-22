@@ -20,7 +20,9 @@ from accelerate.utils import DistributedType
 
 IGNORE_TOKEN_ID = LabelSmoother.ignore_index
 
-
+'''
+用于添加各个参数的默认配置
+'''
 @dataclass
 class ModelArguments:
     model_name_or_path: Optional[str] = field(default="Qwen/Qwen-7B")
@@ -265,11 +267,11 @@ def train():
         training_args,
         lora_args,
     ) = parser.parse_args_into_dataclasses()
-
+    print(training_args)
     # This serves for single-gpu qlora.
     if getattr(training_args, 'deepspeed', None) and int(os.environ.get("WORLD_SIZE", 1))==1:
         training_args.distributed_state.distributed_type = DistributedType.DEEPSPEED
-
+    print(training_args.distributed_state.distributed_type)
     compute_dtype = (
         torch.float16
         if training_args.fp16

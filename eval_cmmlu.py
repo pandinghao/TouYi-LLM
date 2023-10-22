@@ -31,6 +31,7 @@ def load_models_tokenizer(args):
     model = AutoModelForCausalLM.from_pretrained(
         args.checkpoint_path, device_map="auto", trust_remote_code=True
     ).eval()
+    
     model.generation_config = GenerationConfig.from_pretrained(
         args.checkpoint_path, trust_remote_code=True
     )

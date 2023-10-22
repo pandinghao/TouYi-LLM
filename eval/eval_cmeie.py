@@ -301,7 +301,7 @@ if __name__ == "__main__":
         "--checkpoint-path",
         type=str,
         help="Checkpoint path",
-        default="Qwen/Qwen-7B",
+        default="Qwen_model/Qwen/Qwen-7B",
     )
     parser.add_argument("-s", "--seed", type=int, default=1234, help="Random seed")
 
@@ -313,7 +313,7 @@ if __name__ == "__main__":
     group.add_argument(
         "--max-seq-len",
         type=int,
-        default=2048,
+        default=1024,
         help="Size of the output generated text.",
     )
     group.add_argument(

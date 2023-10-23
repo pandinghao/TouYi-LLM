@@ -255,7 +255,7 @@ def make_supervised_data_module(
         eval_dataset = None
 
     return dict(train_dataset=train_dataset, eval_dataset=eval_dataset)
-
+#todo:还需要改dataset
 def compute_metrics(p: EvalPrediction):
     '''
         这里写evaluation的代码
@@ -265,6 +265,9 @@ def compute_metrics(p: EvalPrediction):
         Return:
             评价的指标，字典形式 {"F1": f, ...}
     '''
+    p.predictions
+    p.label_ids
+    return  {"F1": f1}
     pass
 
 

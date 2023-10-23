@@ -157,3 +157,7 @@ PEFT:https://zhuanlan.zhihu.com/p/649776098
 
 # 常见trainer参数解析
 --optim paged_adamw_32bit (优化器记录)通过设置--optim paged_adamw_32bit，来使用内存页面优化。这是transformers的Trainer中自带的一个超参数。大模型微调使用这个操作还是可以，但不是必须的。
+--logging_dir ./tb_logs 
+--logging_steps 50 
+--evaluation_strategy steps 
+--eval_steps 0.5/epoch (小于1是比例， 大于1是具体步长) 

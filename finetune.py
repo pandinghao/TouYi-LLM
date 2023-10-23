@@ -5,6 +5,7 @@ from dataclasses import dataclass, field
 import json
 import math
 import logging
+from datetime import datetime
 import os
 from typing import Dict, Optional, List
 import torch
@@ -279,6 +280,7 @@ def train():
         training_args,
         lora_args,
     ) = parser.parse_args_into_dataclasses()
+    training_args.logging_dir = "{}/{}".format(training_args.logging_dir, datetime.now().strftime('%b%d_%H-%M-%S'))
     #print(training_args)
     # This serves for single-gpu qlora.
     if getattr(training_args, 'deepspeed', None) and int(os.environ.get("WORLD_SIZE", 1))==1:

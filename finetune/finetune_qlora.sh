@@ -28,7 +28,10 @@ torchrun $DISTRIBUTED_ARGS finetune.py \
     --per_device_train_batch_size 3 \
     --per_device_eval_batch_size 1 \
     --gradient_accumulation_steps 2 \
-    --evaluation_strategy no \
+    --logging_dir ./tb_logs \
+    --logging_steps 50 \
+    --evaluation_strategy steps \
+    --eval_steps 1000 \
     --learning_rate 2e-4 \
     --model_max_length 1024 \
     --use_lora \

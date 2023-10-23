@@ -32,7 +32,10 @@ torchrun $DISTRIBUTED_ARGS finetune.py \
     --per_device_train_batch_size 2 \
     --per_device_eval_batch_size 1 \
     --gradient_accumulation_steps 8 \
-    --evaluation_strategy "no" \
+    --logging_dir ./tb_logs \
+    --logging_steps 50 \
+    --evaluation_strategy steps \
+    --eval_steps 1000 \
     --save_strategy "steps" \
     --save_steps 1000 \
     --save_total_limit 10 \
@@ -40,9 +43,9 @@ torchrun $DISTRIBUTED_ARGS finetune.py \
     --weight_decay 0.1 \
     --adam_beta2 0.95 \
     --warmup_ratio 0.01 \
-    --lr_scheduler_type "cosine" \
+    --lr_scheduler_type cosine \
     --logging_steps 1 \
-    --report_to "none" \
+    --report_to tensorboard \
     --model_max_length 1024 \
     --lazy_preprocess True \
     --use_lora \

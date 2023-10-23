@@ -12,10 +12,11 @@ from torch.utils.data import Dataset
 from deepspeed import zero
 from deepspeed.runtime.zero.partition_parameters import ZeroParamStatus
 import transformers
-from transformers import Trainer, GPTQConfig, deepspeed,AutoModelForCausalLM,BitsAndBytesConfig
+from transformers import Trainer, GPTQConfig, deepspeed, AutoModelForCausalLM, BitsAndBytesConfig, EvalPrediction
 from transformers.trainer_pt_utils import LabelSmoother
 from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training
 from accelerate.utils import DistributedType
+from torch.utils.tensorboard import SummaryWriter   # 通过注释这个来控制是否使用tensorboard
 
 
 IGNORE_TOKEN_ID = LabelSmoother.ignore_index
@@ -254,6 +255,17 @@ def make_supervised_data_module(
 
     return dict(train_dataset=train_dataset, eval_dataset=eval_dataset)
 
+def compute_metrics(p: EvalPrediction):
+    '''
+        这里写evaluation的代码
+        Args:
+            p由三部分组成 predictions, label_ids和input_ids，evaluation时一般用前两个
+            具体参看EvalPrediction类
+        Return:
+            评价的指标，字典形式 {"F1": f, ...}
+    '''
+    pass
+
 
 def train():
     global local_rank
@@ -364,7 +376,7 @@ def train():
 
     # Start trainner
     trainer = Trainer(
-        model=model, tokenizer=tokenizer, args=training_args, **data_module
+        model=model, tokenizer=tokenizer, args=training_args, compute_metrics=compute_metrics, **data_module
     )
 
     trainer.train()

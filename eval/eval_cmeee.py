@@ -9,7 +9,7 @@ from collections import defaultdict
 from typing import List
 from tqdm import tqdm
 from transformers.trainer_utils import set_seed
-
+from sklearn.metrics import classification_report,f1_score
 
 """
 wget https://huggingface.co/datasets/haonan-li/cmmlu/resolve/main/cmmlu_v1_0_1.zip
@@ -19,7 +19,6 @@ cd data/cmmlu; unzip cmmlu_v1_0_1.zip
 cd ../../
 python evaluate_cmmlu.py -d data/cmmlu/
 """
-
 
 def load_models_tokenizer(args):
     from transformers import AutoModelForCausalLM, AutoTokenizer

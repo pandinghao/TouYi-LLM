@@ -1,326 +1,102 @@
 import os
-import pandas as pd
-import numpy as np
-import argparse
-import datasets
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+from transformers import AutoTokenizer
 import torch
-from collections import defaultdict
 
-from typing import List
-from tqdm import tqdm
-from transformers.trainer_utils import set_seed
-
-
+import sys
+sys.path.append("../../")
+from utils import ModelUtils
 """
-wget https://huggingface.co/datasets/haonan-li/cmmlu/resolve/main/cmmlu_v1_0_1.zip
-mkdir data/cmmlu
-mv cmmlu_v1_0_1.zip data/cmmlu
-cd data/cmmlu; unzip cmmlu_v1_0_1.zip
-cd ../../
-python evaluate_cmmlu.py -d data/cmmlu/
+单轮对话，不具有对话历史的记忆功能
 """
+# 使用合并后的模型进行推理
+model_name_or_path = "Qwen_model/Qwen/Qwen-7B"       # Qwen模型权重路径
+adapter_name_or_path = None     # sft后adapter权重路径
+# 使用base model和adapter进行推理，无需手动合并权重
+# model_name_or_path = 'baichuan-inc/Baichuan-7B'
+# adapter_name_or_path = 'YeungNLP/firefly-baichuan-7b-qlora-sft'
+# 是否使用4bit进行推理，能够节省很多显存，但效果可能会有一定的下降
+load_in_4bit = False
+# 生成超参配置
+max_new_tokens = 500
+top_p = 0.9
+temperature = 0.35
+repetition_penalty = 1.0
+device = 'cuda: 0'
+# 加载模型
+model = ModelUtils.load_model(
+    model_name_or_path,
+    load_in_4bit=load_in_4bit,
+    adapter_name_or_path=adapter_name_or_path
+).eval()
+
+tokenizer = AutoTokenizer.from_pretrained(
+    model_name_or_path,
+    trust_remote_code=True,
+    # llama不支持fast
+    use_fast=False if model.config.model_type == 'llama' else True
+)
+# QWenTokenizer比较特殊，pad_token_id、bos_token_id、eos_token_id均为None。eod_id对应的token为<|endoftext|>
+if tokenizer.__class__.__name__ == 'QWenTokenizer':
+    tokenizer.pad_token_id = tokenizer.eod_id
+    tokenizer.bos_token_id = tokenizer.eod_id
+    tokenizer.eos_token_id = tokenizer.eod_id
+'''
+病理分型:[溶血性贫血,获得性溶血性贫血];[溶血性贫血,免疫介导的溶血性贫血];[自身免疫性疾病,系统性红斑狼疮];[自身免疫性疾病,类风湿关节炎];[自身免疫性疾病,硬皮病];[自身免疫性疾病,免疫介导的溶血性贫血];[淋巴组织增生性疾病,非霍奇金淋巴瘤];[淋巴组织增生性疾病,慢性淋巴细胞白血病];[淋巴组织增生性疾病,免疫介导的溶血性贫血];\n病因:[免疫介导的溶血性贫血,自身抗体]
+'''
+def eval_cmeie(response):
+    all_res = response.strip('\n')
+    for type_res in all_res:
+        re_type, repairs = type_res.strip(':')
+        
 
 
-def load_models_tokenizer(args):
-    from transformers import AutoModelForCausalLM, AutoTokenizer
-    from transformers.generation import GenerationConfig
+def chat(text):
+    # 是否要加入身份
 
-    tokenizer = AutoTokenizer.from_pretrained(
-        args.checkpoint_path, trust_remote_code=True
-    )
-    model = AutoModelForCausalLM.from_pretrained(
-        args.checkpoint_path, device_map="auto", trust_remote_code=True
-    ).eval()
-    
-    model.generation_config = GenerationConfig.from_pretrained(
-        args.checkpoint_path, trust_remote_code=True
-    )
-    return model, tokenizer
-
-
-def format_example(line, include_answer=True):
-    example = "问题：" + line["Question"]
-    for choice in choices:
-        example += f'\n{choice}. {line[f"{choice}"]}'
-
-    if include_answer:
-        example += "\n答案：" + line["Answer"] + "\n\n"
-    else:
-        example += "\n答案："
-    return example
-
-
-def generate_few_shot_prompt(k, subject, dev_df):
-    prompt = ""
-    if k == -1:
-        k = dev_df.shape[0]
-    for i in range(k):
-        prompt += format_example(
-            dev_df.iloc[i, :],
-            include_answer=True,
+    input_ids = tokenizer(text, return_tensors="pt", add_special_tokens=False).input_ids.to(device)
+    bos_token_id = torch.tensor([[tokenizer.bos_token_id]], dtype=torch.long).to(device)
+    eos_token_id = torch.tensor([[tokenizer.eos_token_id]], dtype=torch.long).to(device)
+    input_ids = torch.concat([bos_token_id, input_ids, eos_token_id], dim=1)
+    with torch.no_grad():
+        outputs = model.generate(
+            input_ids=input_ids, max_new_tokens=max_new_tokens, do_sample=True,
+            top_p=top_p, temperature=temperature, repetition_penalty=repetition_penalty,
+            eos_token_id=tokenizer.eos_token_id
         )
-    return prompt
+    outputs = outputs.tolist()[0][len(input_ids[0]):]
+    response = tokenizer.decode(outputs)
+    response = response.strip().replace(tokenizer.eos_token, "").strip()
+    return response
 
 
-def get_logits(tokenizer, model, inputs: List[str]):
-    input_ids = tokenizer(inputs, padding=False)["input_ids"]
-    input_ids = torch.tensor(input_ids, device=model.device)
-    tokens = {"input_ids": input_ids}
-
-    outputs = model(input_ids)["logits"]
-    logits = outputs[:, -1, :]
-    log_probs = torch.nn.functional.softmax(logits, dim=-1)
-    return log_probs, {"tokens": tokens}
-
-
-@torch.no_grad()
-def eval_subject(
-    model,
-    tokenizer,
-    subject_name,
-    test_df,
-    k=5,
-    dev_df=None,
-    few_shot=False,
-    save_result_dir=None,
-    **kwargs,
-):
-    result = []
-    score = []
-
-    few_shot_prompt = (
-        generate_few_shot_prompt(k, subject_name, dev_df) if few_shot else []
-    )
-    all_probs = {"prob_A": [], "prob_B": [], "prob_C": [], "prob_D": []}
-    if args.debug:
-        print(f"few_shot_prompt: {few_shot_prompt}")
-
-    for _, row in tqdm(test_df.iterrows(), total=len(test_df)):
-        question = format_example(row, include_answer=False)
-        full_prompt = few_shot_prompt + question
-
-        output, input_info = get_logits(tokenizer, model, [full_prompt])
-        assert output.shape[0] == 1
-        logits = output.flatten()
-
-        softval = torch.nn.functional.softmax(
-            torch.tensor(
-                [
-                    logits[tokenizer("A")["input_ids"]],
-                    logits[tokenizer("B")["input_ids"]],
-                    logits[tokenizer("C")["input_ids"]],
-                    logits[tokenizer("D")["input_ids"]],
-                ]
-            ),
-            dim=0,
-        )
-        if softval.dtype in {torch.bfloat16, torch.float16}:
-            softval = softval.to(dtype=torch.float32)
-        probs = softval.detach().cpu().numpy()
-
-        for i, choice in enumerate(choices):
-            all_probs[f"prob_{choice}"].append(probs[i])
-        pred = {0: "A", 1: "B", 2: "C", 3: "D"}[np.argmax(probs)]
-
-        if "Answer" in row:
-            correct = 1 if pred == row["Answer"] else 0
-            score.append(correct)
-            if args.debug:
-                print(f'{question} pred: {pred} ref: {row["Answer"]}')
-        result.append(pred)
-
-    if score:
-        correct_ratio = 100 * sum(score) / len(score)
-        if args.debug:
-            print(subject_name, correct_ratio)
-    else:
-        correct_ratio = 0
-    if save_result_dir:
-        test_df["model_output"] = result
-        for i, choice in enumerate(choices):
-            test_df[f"prob_{choice}"] = all_probs[f"prob_{choice}"]
-        if score:
-            test_df["correctness"] = score
-        os.makedirs(save_result_dir, exist_ok=True)
-        test_df.to_csv(
-            os.path.join(save_result_dir, f"{subject_name}_result.csv"),
-            encoding="utf-8",
-            index=False,
-        )
-
-    return correct_ratio
+def main():
+    text = input('User：')
+    while True:
+        text = text.strip()
+        # chatglm使用官方的数据组织格式
+        if model.config.model_type == 'chatglm':
+            text = '[Round 1]\n\n问：{}\n\n答：'.format(text)
+            input_ids = tokenizer(text, return_tensors="pt", add_special_tokens=False).input_ids.to(device)
+        # 为了兼容qwen-7b，因为其对eos_token进行tokenize，无法得到对应的eos_token_id
+        else:
+            input_ids = tokenizer(text, return_tensors="pt", add_special_tokens=False).input_ids.to(device)
+            bos_token_id = torch.tensor([[tokenizer.bos_token_id]], dtype=torch.long).to(device)
+            eos_token_id = torch.tensor([[tokenizer.eos_token_id]], dtype=torch.long).to(device)
+            input_ids = torch.concat([bos_token_id, input_ids, eos_token_id], dim=1)
+        with torch.no_grad():
+            outputs = model.generate(
+                input_ids=input_ids, max_new_tokens=max_new_tokens, do_sample=True,
+                top_p=top_p, temperature=temperature, repetition_penalty=repetition_penalty,
+                eos_token_id=tokenizer.eos_token_id
+            )
+        outputs = outputs.tolist()[0][len(input_ids[0]):]
+        response = tokenizer.decode(outputs)
+        response = response.strip().replace(tokenizer.eos_token, "").strip()
+        eval_cmeie(response)
+        print("Firefly：{}".format(response))
+        text = input('User：')
 
 
-def cal_cmmlu(res):
-    print("\n\n\n")
-    res = {k.split("-")[-1]: float(v) for k, v in res.items()}
-    for k, v in TASK_NAME_MAPPING.items():
-        avg_acc = np.mean(list(map(lambda x: res[x], v)))
-        print(f"{k} acc: {avg_acc:.2f}")
-    avg_all_acc = np.mean(list(res.values()))
-    print(f"AVERAGE acc: {avg_all_acc:.2f}")
-
-
-subcategories = {
-    "agronomy": ["other"],
-    "anatomy": ["biology"],
-    "ancient_chinese": ["linguistics", "china specific"],
-    "arts": ["arts"],
-    "astronomy": ["physics"],
-    "business_ethics": ["business"],
-    "chinese_civil_service_exam": ["politics", "china specific"],
-    "chinese_driving_rule": ["other", "china specific"],
-    "chinese_food_culture": ["culture", "china specific"],
-    "chinese_foreign_policy": ["politics", "china specific"],
-    "chinese_history": ["history", "china specific"],
-    "chinese_literature": ["literature", "china specific"],
-    "chinese_teacher_qualification": ["education", "china specific"],
-    "college_actuarial_science": ["math"],
-    "college_education": ["education"],
-    "college_engineering_hydrology": ["engineering"],
-    "college_law": ["law"],
-    "college_mathematics": ["math"],
-    "college_medical_statistics": ["statistics"],
-    "clinical_knowledge": ["other"],
-    "college_medicine": ["other"],
-    "computer_science": ["computer science"],
-    "computer_security": ["other"],
-    "conceptual_physics": ["physics"],
-    "construction_project_management": ["other", "china specific"],
-    "economics": ["economics"],
-    "education": ["education"],
-    "elementary_chinese": ["linguistics", "china specific"],
-    "elementary_commonsense": ["other", "china specific"],
-    "elementary_information_and_technology": ["other"],
-    "electrical_engineering": ["engineering"],
-    "elementary_mathematics": ["math"],
-    "ethnology": ["culture", "china specific"],
-    "food_science": ["other"],
-    "genetics": ["biology"],
-    "global_facts": ["global"],
-    "high_school_biology": ["biology"],
-    "high_school_chemistry": ["chemistry"],
-    "high_school_geography": ["geography"],
-    "high_school_mathematics": ["math"],
-    "high_school_physics": ["physics"],
-    "high_school_politics": ["politics", "china specific"],
-    "human_sexuality": ["other"],
-    "international_law": ["law"],
-    "journalism": ["sociology"],
-    "jurisprudence": ["law"],
-    "legal_and_moral_basis": ["other"],
-    "logical": ["philosophy"],
-    "machine_learning": ["computer science"],
-    "management": ["business"],
-    "marketing": ["business"],
-    "marxist_theory": ["philosophy"],
-    "modern_chinese": ["linguistics", "china specific"],
-    "nutrition": ["other"],
-    "philosophy": ["philosophy"],
-    "professional_accounting": ["business"],
-    "professional_law": ["law"],
-    "professional_medicine": ["other"],
-    "professional_psychology": ["psychology"],
-    "public_relations": ["politics"],
-    "security_study": ["politics"],
-    "sociology": ["culture"],
-    "sports_science": ["other"],
-    "traditional_chinese_medicine": ["other", "china specific"],
-    "virology": ["biology"],
-    "world_history": ["history"],
-    "world_religions": ["global"],
-}
-
-categories = {
-    "STEM": [
-        "physics",
-        "chemistry",
-        "biology",
-        "computer science",
-        "math",
-        "engineering",
-        "statistics",
-    ],
-    "Humanities": ["history", "philosophy", "law", "arts", "literature", "global"],
-    "Social Science": [
-        "linguistics",
-        "business",
-        "politics",
-        "culture",
-        "economics",
-        "geography",
-        "psychology",
-        "education",
-        "sociology",
-    ],
-    "Other": ["other"],
-    "China specific": ["china specific"],
-}
-
-TASK_NAME_MAPPING = defaultdict(list)
-for k, v in categories.items():
-    for subject, subcat in subcategories.items():
-        for c in subcat:
-            if c in v:
-                TASK_NAME_MAPPING[k].append(subject)
-
-
-choices = ["A", "B", "C", "D"]
-
-
-def main(args):
-    model, tokenizer = load_models_tokenizer(args)
-
-    test_result = {}
-    for subject_name in tqdm(subcategories.keys()):
-        dev_file_path = os.path.join(args.eval_data_path, "dev", f"{subject_name}.csv")
-        test_file_path = os.path.join(
-            args.eval_data_path, "test", f"{subject_name}.csv"
-        )
-        dev_df = pd.read_csv(dev_file_path)
-        test_df = pd.read_csv(test_file_path)
-
-        score = eval_subject(
-            model,
-            tokenizer,
-            subject_name,
-            dev_df=dev_df,
-            test_df=test_df,
-            k=5,
-            few_shot=True,
-            save_result_dir=f"outs/cmmlu_eval_result",
-        )
-        test_result[subject_name] = score
-    cal_cmmlu(test_result)
-
-
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Test HF checkpoint.")
-    parser.add_argument(
-        "-c",
-        "--checkpoint-path",
-        type=str,
-        help="Checkpoint path",
-        default="Qwen_model/Qwen/Qwen-7B",
-    )
-    parser.add_argument("-s", "--seed", type=int, default=1234, help="Random seed")
-
-    """Provide extra arguments required for tasks."""
-    group = parser.add_argument_group(title="Evaluation options")
-    group.add_argument(
-        "-d", "--eval_data_path", type=str, required=True, help="Path to eval data"
-    )
-    group.add_argument(
-        "--max-seq-len",
-        type=int,
-        default=1024,
-        help="Size of the output generated text.",
-    )
-    group.add_argument(
-        "--debug", action="store_true", default=False, help="Print infos."
-    )
-
-    args = parser.parse_args()
-    set_seed(args.seed)
-
-    main(args)
+if __name__ == '__main__':
+    main()

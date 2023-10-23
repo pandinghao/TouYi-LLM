@@ -266,7 +266,6 @@ def compute_metrics(p: EvalPrediction):
         Return:
             评价的指标，字典形式 {"F1": f, ...}
     '''
-    
     p.predictions
     p.label_ids
     return  {"F1"}

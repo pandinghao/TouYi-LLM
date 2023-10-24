@@ -17,6 +17,7 @@ from transformers import Trainer, GPTQConfig, deepspeed, AutoModelForCausalLM, B
 from transformers.trainer_pt_utils import LabelSmoother
 from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training
 from accelerate.utils import DistributedType
+from utils import find_all_linear_names
 from torch.utils.tensorboard import SummaryWriter   # 通过注释这个来控制是否使用tensorboard
 
 
@@ -130,7 +131,8 @@ def preprocess(
     sources,
     tokenizer: transformers.PreTrainedTokenizer,
     max_len: int,
-    system_message: str = "You are a helpful assistant."
+    system_message: str = "You are a helpful assistant.",
+    test_flag: bool = False
 ) -> Dict:
     roles = {"user": "<|im_start|>user", "assistant": "<|im_start|>assistant"}
 
@@ -156,6 +158,7 @@ def preprocess(
             role = roles[sentence["from"]]
             _input_id = tokenizer(role).input_ids + nl_tokens + \
                 tokenizer(sentence["value"]).input_ids + [im_end] + nl_tokens
+            print(sentence["value"])
             input_id += _input_id
             if role == '<|im_start|>user':
                 _target = [im_start] + [IGNORE_TOKEN_ID] * (len(_input_id)-3) + [im_end] + nl_tokens
@@ -168,8 +171,10 @@ def preprocess(
         assert len(input_id) == len(target)
         input_id += [tokenizer.pad_token_id] * (max_len - len(input_id))
         target += [IGNORE_TOKEN_ID] * (max_len - len(target))
+        print("input_id" + str(input_id) + '\n')
         input_ids.append(input_id[:max_len])
         targets.append(target[:max_len])
+    print(input_ids)
     input_ids = torch.tensor(input_ids, dtype=torch.int)
     targets = torch.tensor(targets, dtype=torch.int)
 
@@ -244,7 +249,6 @@ def make_supervised_data_module(
         LazySupervisedDataset if data_args.lazy_preprocess else SupervisedDataset
     )
     rank0_print("Loading data...")
-
     train_json = json.load(open(data_args.data_path, "r"))
     train_dataset = dataset_cls(train_json, tokenizer=tokenizer, max_len=max_len)
 
@@ -356,10 +360,12 @@ def train():
             modules_to_save = None
         else:
             modules_to_save = ["wte", "lm_head"]
+        #target_modules = find_all_linear_names(model)
         lora_config = LoraConfig(
             r=lora_args.lora_r,
             lora_alpha=lora_args.lora_alpha,
             target_modules=lora_args.lora_target_modules,
+            #target_modules=target_modules,
             lora_dropout=lora_args.lora_dropout,
             bias=lora_args.lora_bias,
             task_type="CAUSAL_LM",

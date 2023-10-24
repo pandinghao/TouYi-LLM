@@ -6,6 +6,7 @@ import torch
 import sys
 sys.path.append("../../")
 from utils import ModelUtils
+import json
 """
 单轮对话，不具有对话历史的记忆功能
 """
@@ -33,6 +34,7 @@ model = ModelUtils.load_model(
 tokenizer = AutoTokenizer.from_pretrained(
     model_name_or_path,
     trust_remote_code=True,
+    padding_side='left',
     # llama不支持fast
     use_fast=False if model.config.model_type == 'llama' else True
 )
@@ -44,17 +46,22 @@ if tokenizer.__class__.__name__ == 'QWenTokenizer':
 '''
 病理分型:[溶血性贫血,获得性溶血性贫血];[溶血性贫血,免疫介导的溶血性贫血];[自身免疫性疾病,系统性红斑狼疮];[自身免疫性疾病,类风湿关节炎];[自身免疫性疾病,硬皮病];[自身免疫性疾病,免疫介导的溶血性贫血];[淋巴组织增生性疾病,非霍奇金淋巴瘤];[淋巴组织增生性疾病,慢性淋巴细胞白血病];[淋巴组织增生性疾病,免疫介导的溶血性贫血];\n病因:[免疫介导的溶血性贫血,自身抗体]
 '''
-def eval_cmeie(response):
-    all_res = response.strip('\n')
+def get_label_from_valid(valid_file_path, task_type):
+    with open(valid_file_path,'r'):
+        json.load()
+
+def eval_cmeie(response,label):
+    all_res = response.split('\n')
     for type_res in all_res:
-        re_type, repairs = type_res.strip(':')
+        re_type, repairs = type_res.split(':')
+        type_results = repairs.strip(';').split(';')
         
 
 
 def chat(text):
     # 是否要加入身份
 
-    input_ids = tokenizer(text, return_tensors="pt", add_special_tokens=False).input_ids.to(device)
+    input_ids = tokenizer(text,padding_side='left', return_tensors="pt", add_special_tokens=False).input_ids.to(device)
     bos_token_id = torch.tensor([[tokenizer.bos_token_id]], dtype=torch.long).to(device)
     eos_token_id = torch.tensor([[tokenizer.eos_token_id]], dtype=torch.long).to(device)
     input_ids = torch.concat([bos_token_id, input_ids, eos_token_id], dim=1)
@@ -93,7 +100,7 @@ def main():
         outputs = outputs.tolist()[0][len(input_ids[0]):]
         response = tokenizer.decode(outputs)
         response = response.strip().replace(tokenizer.eos_token, "").strip()
-        eval_cmeie(response)
+        #eval_cmeie(response)
         print("Firefly：{}".format(response))
         text = input('User：')
 

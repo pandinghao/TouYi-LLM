@@ -11,7 +11,7 @@ MASTER_PORT=6002
 MODEL="Qwen_model/Qwen/Qwen-7B" # Set the path if you do not want to load from huggingface directly
 # ATTENTION: specify the path to your training data, which should be a json file consisting of a list of conversations.
 # See the section for finetuning in README for more information.
-DATA="data/processed/train_cmedqa2.json"
+DATA="data/processed/stage1_train.json"
 
 DISTRIBUTED_ARGS="
     --nproc_per_node $GPUS_PER_NODE \
@@ -24,22 +24,22 @@ torchrun $DISTRIBUTED_ARGS finetune.py \
     --output_dir output_qwen \
     --model_name_or_path Qwen_model/Qwen/Qwen-7B \
     --data_path data/processed/train_cmedqa2.json \
-    --num_train_epochs 1 \
+    --num_train_epochs 5 \
     --per_device_train_batch_size 3 \
     --per_device_eval_batch_size 1 \
     --gradient_accumulation_steps 2 \
     --logging_dir ./tb_logs \
-    --logging_steps 50 \
-    --evaluation_strategy steps \
+    --logging_steps 10 \
+    --evaluation_strategy no \
     --eval_steps 1000 \
     --learning_rate 2e-4 \
     --model_max_length 1024 \
     --use_lora \
     --q_lora \
-    --save_steps 1000 \
-    --save_total_limit 3 \
+    --save_steps 1125 \
+    --save_total_limit 10 \
     --lr_scheduler_type constant_with_warmup \
-    --warmup_ratio 0.01 \
+    --warmup_ratio 0.1 \
     --lora_r 64 \
     --lora_alpha 16 \
     --lora_dropout 0.05 \
@@ -51,6 +51,6 @@ torchrun $DISTRIBUTED_ARGS finetune.py \
     --report_to tensorboard \
     --dataloader_num_workers 0 \
     --save_strategy steps \
-    --weight_decay 0.1 \
+    --weight_decay 0.05 \
     --max_grad_norm 0.3 \
     --remove_unused_columns false

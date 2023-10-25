@@ -20,7 +20,7 @@ adapter_name_or_path = "output_qwen/checkpoint-1125"     # sft后adapter权重�
 # adapter_name_or_path = 'YeungNLP/firefly-baichuan-7b-qlora-sft'
 
 # 是否使用4bit进行推理，能够节省很多显存，但效果可能会有一定的下降
-load_in_4bit = False
+load_in_4bit = True
 # 生成超参配置
 max_new_tokens = 500
 top_p = 0.9
@@ -48,8 +48,9 @@ def main():
     while True:
         conversation = [{"from": "user", "value": text}]
         print("conversation" + str(conversation))
+        im_start = tokenizer.im_start_id
         tokenizer.pad_token_id = tokenizer.eod_id
-        data_dict = preprocess([conversation], tokenizer, 1024)
+        data_dict = preprocess([conversation], tokenizer, 1024, test_flag = True)
         print(data_dict)
         input_ids = data_dict["input_ids"].to(device)
         labels = data_dict["labels"]

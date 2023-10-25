@@ -131,13 +131,13 @@ def preprocess(
     sources,
     tokenizer: transformers.PreTrainedTokenizer,
     max_len: int,
-    system_message: str = "You are a helpful assistant.",
+    system_message: str = None,
     test_flag: bool = False
 ) -> Dict:
-    roles = {"user": "<|im_start|>user", "assistant": "<|im_start|>assistant"}
+    roles = {"user": "用户", "assistant": "助手"}
 
-    im_start = tokenizer.im_start_id
-    im_end = tokenizer.im_end_id
+    #im_start = tokenizer.im_start_id
+    #im_end = tokenizer.im_end_id
     nl_tokens = tokenizer('\n').input_ids
     _system = tokenizer('system').input_ids + nl_tokens
     _user = tokenizer('user').input_ids + nl_tokens
@@ -149,39 +149,36 @@ def preprocess(
         if roles[source[0]["from"]] != roles["user"]:
             source = source[1:]
 
-        input_id, target = [], []
-        system = [im_start] + _system + tokenizer(system_message).input_ids + [im_end] + nl_tokens
-        input_id += system
-        target += [im_start] + [IGNORE_TOKEN_ID] * (len(system)-3) + [im_end] + nl_tokens
+        input_id, target = [tokenizer.bos_token_id], []
+        if system_message :
+            system =  _system + tokenizer(system_message).input_ids + [tokenizer.eos_token_id]
+            input_id += system
+            target +=  [IGNORE_TOKEN_ID] * (len(system)) 
         assert len(input_id) == len(target)
         for j, sentence in enumerate(source):
             role = roles[sentence["from"]]
+            #role = sentence["from"]
             _input_id = tokenizer(role).input_ids + nl_tokens + \
-                tokenizer(sentence["value"]).input_ids + [im_end] + nl_tokens
+                tokenizer(sentence["value"]).input_ids + [tokenizer.eos_token_id]
             #print(sentence["value"])
             input_id += _input_id
-            if test_flag:
-                input_id += [im_start]
-            if role == '<|im_start|>user':
-                _target = [im_start] + [IGNORE_TOKEN_ID] * (len(_input_id)-3) + [im_end] + nl_tokens
-            elif role == '<|im_start|>assistant':
-                _target = [im_start] + [IGNORE_TOKEN_ID] * len(tokenizer(role).input_ids) + \
-                    _input_id[len(tokenizer(role).input_ids)+1:-2] + [im_end] + nl_tokens
+            if role == '用户':
+                _target = [IGNORE_TOKEN_ID] * (len(_input_id))
+            elif role == '助手':
+                _target = [IGNORE_TOKEN_ID] * len(tokenizer(role).input_ids) + \
+                    _input_id[len(tokenizer(role).input_ids)+1:-2] + [tokenizer.eos_token_id]
             else:
                 raise NotImplementedError
             target += _target
-        if not test_flag:
-            assert len(input_id) == len(target)
+        assert len(input_id) == len(target)
         if test_flag :
-            input_id = input_id
+            input_id = [tokenizer.pad_token_id] * (max_len - len(input_id)) + input_id
             target = [IGNORE_TOKEN_ID] * (max_len - len(target)) + target
         else:
             input_id += [tokenizer.pad_token_id] * (max_len - len(input_id))
             target += [IGNORE_TOKEN_ID] * (max_len - len(target))
-        #print("input_id" + str(input_id) + '\n')
         input_ids.append(input_id[:max_len])
         targets.append(target[:max_len])
-    #print(input_ids)
     input_ids = torch.tensor(input_ids, dtype=torch.int)
     targets = torch.tensor(targets, dtype=torch.int)
 
@@ -360,7 +357,10 @@ def train():
         #llama不支持usefast
         trust_remote_code=True,
     )
-    tokenizer.pad_token_id = tokenizer.eod_id
+    if tokenizer.__class__.__name__ == 'QWenTokenizer':
+        tokenizer.pad_token_id = tokenizer.eod_id
+        tokenizer.bos_token_id = tokenizer.eod_id
+        tokenizer.eos_token_id = tokenizer.eod_id
     # QWenTokenizer比较特殊，pad_token_id、bos_token_id、eos_token_id均为None。eod_id对应的token为<|endoftext|>
     if training_args.use_lora:
         if lora_args.q_lora or 'chat' in model_args.model_name_or_path.lower():

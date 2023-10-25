@@ -170,12 +170,6 @@ def preprocess(
             else:
                 raise NotImplementedError
             target += _target
-<<<<<<< HEAD
-        assert len(input_id) == len(target)
-        input_id += [tokenizer.pad_token_id] * (max_len - len(input_id))
-        target += [IGNORE_TOKEN_ID] * (max_len - len(target))
-        #print("input_id" + str(input_id) + '\n')
-=======
         if not test_flag:
             assert len(input_id) == len(target)
         if test_flag :
@@ -185,7 +179,6 @@ def preprocess(
             input_id += [tokenizer.pad_token_id] * (max_len - len(input_id))
             target += [IGNORE_TOKEN_ID] * (max_len - len(target))
         print("input_id" + str(input_id) + '\n')
->>>>>>> f5fbc7f618d62bbf82fc4a8da591d5ffa05c0bfd
         input_ids.append(input_id[:max_len])
         targets.append(target[:max_len])
     #print(input_ids)

@@ -178,7 +178,7 @@ def preprocess(
         else:
             input_id += [tokenizer.pad_token_id] * (max_len - len(input_id))
             target += [IGNORE_TOKEN_ID] * (max_len - len(target))
-        print("input_id" + str(input_id) + '\n')
+        #print("input_id" + str(input_id) + '\n')
         input_ids.append(input_id[:max_len])
         targets.append(target[:max_len])
     #print(input_ids)

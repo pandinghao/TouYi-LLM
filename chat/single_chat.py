@@ -65,8 +65,10 @@ def main():
                 top_p=top_p, temperature=temperature, repetition_penalty=repetition_penalty,
                 eos_token_id=tokenizer.eos_token_id
             )
+        print(model)
         outputs = outputs.tolist()[0][len(input_ids[0]):]
-        response = tokenizer.decode(outputs)
+        #print(len(outputs))
+        response = tokenizer.decode(outputs,skip_special_tokens = True)
         #response = response.strip().replace(tokenizer.eos_token, "").strip()
         print("Touyi：{}".format(response))
         text = input('User：')

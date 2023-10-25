@@ -144,16 +144,17 @@ def preprocess(
     _assistant = tokenizer('assistant').input_ids + nl_tokens
 
     # Apply prompt templates
-    input_ids, targets = [], []
+    input_ids, targets,attention_mask = [], [],[]
     for i, source in enumerate(sources):
         if roles[source[0]["from"]] != roles["user"]:
             source = source[1:]
-
-        input_id, target = [tokenizer.bos_token_id], []
+        input_id, target = [tokenizer.bos_token_id], [IGNORE_TOKEN_ID]
+        '''
         if system_message :
             system =  _system + tokenizer(system_message).input_ids + [tokenizer.eos_token_id]
             input_id += system
             target +=  [IGNORE_TOKEN_ID] * (len(system)) 
+        '''
         assert len(input_id) == len(target)
         for j, sentence in enumerate(source):
             role = roles[sentence["from"]]
@@ -165,27 +166,32 @@ def preprocess(
             if role == '用户':
                 _target = [IGNORE_TOKEN_ID] * (len(_input_id))
             elif role == '助手':
-                _target = [IGNORE_TOKEN_ID] * len(tokenizer(role).input_ids) + \
-                    _input_id[len(tokenizer(role).input_ids)+1:-2] + [tokenizer.eos_token_id]
+                _target = [IGNORE_TOKEN_ID] * (len(tokenizer(role).input_ids) + 1) + \
+                    _input_id[len(tokenizer(role).input_ids) + 1:] 
             else:
                 raise NotImplementedError
             target += _target
+        att_mask = [1] * len(input_id)
         assert len(input_id) == len(target)
         if test_flag :
-            input_id = [tokenizer.pad_token_id] * (max_len - len(input_id)) + input_id
-            target = [IGNORE_TOKEN_ID] * (max_len - len(target)) + target
+            if len(input_id) < max_len:
+                input_id = [tokenizer.pad_token_id] * (max_len - len(input_id)) + input_id
+                target = [IGNORE_TOKEN_ID] * (max_len - len(target)) + target
         else:
-            input_id += [tokenizer.pad_token_id] * (max_len - len(input_id))
-            target += [IGNORE_TOKEN_ID] * (max_len - len(target))
+            if len(input_id) < max_len:
+                input_id += [tokenizer.pad_token_id] * (max_len - len(input_id))
+                target += [IGNORE_TOKEN_ID] * (max_len - len(target))
+                att_mask += [0] * (max_len - len(att_mask))
         input_ids.append(input_id[:max_len])
         targets.append(target[:max_len])
+        attention_mask.append(att_mask[:max_len])
     input_ids = torch.tensor(input_ids, dtype=torch.int)
     targets = torch.tensor(targets, dtype=torch.int)
-
+    attention_mask = torch.tensor(attention_mask, dtype=torch.int)
     return dict(
         input_ids=input_ids,
         labels=targets,
-        attention_mask=input_ids.ne(tokenizer.pad_token_id),
+        attention_mask=attention_mask,
     )
 
 

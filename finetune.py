@@ -158,7 +158,7 @@ def preprocess(
             role = roles[sentence["from"]]
             _input_id = tokenizer(role).input_ids + nl_tokens + \
                 tokenizer(sentence["value"]).input_ids + [im_end] + nl_tokens
-            print(sentence["value"])
+            #print(sentence["value"])
             input_id += _input_id
             if role == '<|im_start|>user':
                 _target = [im_start] + [IGNORE_TOKEN_ID] * (len(_input_id)-3) + [im_end] + nl_tokens
@@ -171,10 +171,10 @@ def preprocess(
         assert len(input_id) == len(target)
         input_id += [tokenizer.pad_token_id] * (max_len - len(input_id))
         target += [IGNORE_TOKEN_ID] * (max_len - len(target))
-        print("input_id" + str(input_id) + '\n')
+        #print("input_id" + str(input_id) + '\n')
         input_ids.append(input_id[:max_len])
         targets.append(target[:max_len])
-    print(input_ids)
+    #print(input_ids)
     input_ids = torch.tensor(input_ids, dtype=torch.int)
     targets = torch.tensor(targets, dtype=torch.int)
 

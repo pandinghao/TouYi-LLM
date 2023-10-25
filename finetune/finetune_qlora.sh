@@ -23,8 +23,8 @@ DISTRIBUTED_ARGS="
 torchrun $DISTRIBUTED_ARGS finetune.py \
     --output_dir output_qwen \
     --model_name_or_path Qwen_model/Qwen/Qwen-7B \
-    --data_path data/processed/train_cmedqa2.json \
-    --num_train_epochs 5 \
+    --data_path $DATA \
+    --num_train_epochs 10 \
     --per_device_train_batch_size 3 \
     --per_device_eval_batch_size 1 \
     --gradient_accumulation_steps 2 \
@@ -37,7 +37,7 @@ torchrun $DISTRIBUTED_ARGS finetune.py \
     --use_lora \
     --q_lora \
     --save_steps 1125 \
-    --save_total_limit 10 \
+    --save_total_limit 20 \
     --lr_scheduler_type constant_with_warmup \
     --warmup_ratio 0.1 \
     --lora_r 64 \

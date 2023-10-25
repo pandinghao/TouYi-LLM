@@ -13,7 +13,7 @@ from utils import ModelUtils
 
 # 使用合并后的模型进行推理
 model_name_or_path = "Qwen_model/Qwen/Qwen-7B"      # Qwen模型权重路径
-adapter_name_or_path = "output_qwen/checkpoint-10125"     # sft后adapter权重路径
+adapter_name_or_path = "output_qwen/checkpoint-1125"     # sft后adapter权重路径
 
 # 使用base model和adapter进行推理，无需手动合并权重
 # model_name_or_path = 'baichuan-inc/Baichuan-7B'

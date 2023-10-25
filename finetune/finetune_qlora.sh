@@ -26,17 +26,18 @@ torchrun $DISTRIBUTED_ARGS finetune.py \
     --data_path $DATA \
     --num_train_epochs 10 \
     --per_device_train_batch_size 3 \
-    --per_device_eval_batch_size 1 \
+    --per_device_eval_batch_size 3 \
     --gradient_accumulation_steps 2 \
     --logging_dir ./tb_logs \
     --logging_steps 10 \
-    --evaluation_strategy no \
-    --eval_steps 1000 \
+    --eval_data_path data/processed/stage1_eval.json \
+    --evaluation_strategy steps \
+    --eval_steps 550 \
     --learning_rate 2e-4 \
     --model_max_length 1024 \
     --use_lora \
     --q_lora \
-    --save_steps 1125 \
+    --save_steps 1100 \
     --save_total_limit 20 \
     --lr_scheduler_type constant_with_warmup \
     --warmup_ratio 0.1 \

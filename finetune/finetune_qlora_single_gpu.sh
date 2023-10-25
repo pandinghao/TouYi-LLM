@@ -18,7 +18,7 @@ python finetune.py \
   --per_device_train_batch_size 2 \
   --per_device_eval_batch_size 1 \
   --gradient_accumulation_steps 8 \
-  --evaluation_strategy "no" \
+  --evaluation_strategy "steps" \
   --save_strategy "steps" \
   --save_steps 1000 \
   --save_total_limit 10 \

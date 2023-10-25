@@ -400,8 +400,11 @@ def train():
     )
 
     # Start trainner
+    #trainer = Trainer(
+    #    model=model, tokenizer=tokenizer, args=training_args, compute_metrics=compute_metrics, **data_module
+    #)
     trainer = Trainer(
-        model=model, tokenizer=tokenizer, args=training_args, compute_metrics=compute_metrics, **data_module
+        model=model, tokenizer=tokenizer, args=training_args, **data_module
     )
 
     trainer.train()

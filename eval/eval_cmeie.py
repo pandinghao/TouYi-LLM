@@ -4,7 +4,7 @@ from transformers import AutoTokenizer
 import torch
 import sys
 sys.path.append("./")
-from finetune import preprocess
+from finetune import SupervisedDataset
 from utils import ModelUtils
 """
 单轮对话，不具有对话历史的记忆功能
@@ -46,8 +46,6 @@ tokenizer = AutoTokenizer.from_pretrained(
 def main():
     text = input('User：')
     while True:
-        conversation = [{"from": "user", "value": text}]
-        print("conversation" + str(conversation))
         if tokenizer.__class__.__name__ == 'QWenTokenizer':
             tokenizer.pad_token_id = tokenizer.eod_id
             tokenizer.bos_token_id = tokenizer.eod_id

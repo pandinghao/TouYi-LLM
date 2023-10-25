@@ -4,11 +4,9 @@ from transformers import AutoTokenizer
 import torch
 import sys
 sys.path.append("./")
-from finetune import preprocess
+from finetune import make_supervised_data_module
 from utils import ModelUtils
-"""
-单轮对话，不具有对话历史的记忆功能
-"""
+
 
 
 # 使用合并后的模型进行推理

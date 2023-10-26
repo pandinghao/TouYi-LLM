@@ -148,8 +148,10 @@ def preprocess(
     # Apply prompt templates
     input_ids, targets,attention_mask = [], [],[]
     for i, source in enumerate(sources):
+        '''
         if roles[source[0]["from"]] != roles["user"]:
             source = source[1:]
+        '''
         input_id, target = [tokenizer.bos_token_id], [IGNORE_TOKEN_ID]
         '''
         if system_message :

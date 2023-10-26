@@ -15,7 +15,7 @@ from deepspeed.runtime.zero.partition_parameters import ZeroParamStatus
 import transformers
 from transformers import Trainer, GPTQConfig, deepspeed, AutoModelForCausalLM, BitsAndBytesConfig, EvalPrediction
 from transformers.trainer_pt_utils import LabelSmoother
-from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training
+from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training,PeftModel
 from accelerate.utils import DistributedType
 from utils import find_all_linear_names
 from torch.utils.tensorboard import SummaryWriter   # 通过注释这个来控制是否使用tensorboard
@@ -53,6 +53,8 @@ class TrainingArguments(transformers.TrainingArguments):
         },
     )
     use_lora: bool = False
+    train_from_former_checkpoint: str = None
+    peft_path: str = None
 
 
 @dataclass
@@ -146,8 +148,10 @@ def preprocess(
     # Apply prompt templates
     input_ids, targets,attention_mask = [], [],[]
     for i, source in enumerate(sources):
+        '''
         if roles[source[0]["from"]] != roles["user"]:
             source = source[1:]
+        '''
         input_id, target = [tokenizer.bos_token_id], [IGNORE_TOKEN_ID]
         '''
         if system_message :
@@ -389,8 +393,10 @@ def train():
                 model, use_gradient_checkpointing=training_args.gradient_checkpointing
             )
 
-        model = get_peft_model(model, lora_config)
-
+        if training_args.peft_path :
+            model = PeftModel.from_pretrained(model, training_args.peft_path, is_trainable=True)
+        else:
+            model = get_peft_model(model, lora_config)
         if training_args.gradient_checkpointing:
             model.enable_input_require_grads()
 

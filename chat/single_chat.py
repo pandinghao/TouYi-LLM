@@ -4,7 +4,7 @@ from transformers import AutoTokenizer
 import torch
 import sys
 sys.path.append("./")
-from finetune import make_supervised_data_module
+from finetune import make_supervised_data_module,preprocess
 from utils import ModelUtils
 
 

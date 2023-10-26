@@ -11,18 +11,18 @@ from utils import ModelUtils
 
 # 使用合并后的模型进行推理
 model_name_or_path = "Qwen_model/Qwen/Qwen-7B"      # Qwen模型权重路径
-adapter_name_or_path = "output_qwen/checkpoint-1125"     # sft后adapter权重路径
+adapter_name_or_path = "output_qwen_from8800/checkpoint-3300"     # sft后adapter权重路径
 
 # 使用base model和adapter进行推理，无需手动合并权重
 # model_name_or_path = 'baichuan-inc/Baichuan-7B'
 # adapter_name_or_path = 'YeungNLP/firefly-baichuan-7b-qlora-sft'
 
 # 是否使用4bit进行推理，能够节省很多显存，但效果可能会有一定的下降
-load_in_4bit = True
+load_in_4bit = False
 # 生成超参配置
 max_new_tokens = 500
 top_p = 0.9
-temperature = 0.35
+temperature = 0.2
 repetition_penalty = 1.0
 device = 'cuda:0'
 # 加载模型

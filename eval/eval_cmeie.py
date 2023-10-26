@@ -4,13 +4,19 @@ from transformers import AutoTokenizer
 import torch
 import sys
 sys.path.append("./")
-from finetune import SupervisedDataset
+from finetune import SupervisedDataset,preprocess
 from utils import ModelUtils
-"""
-单轮对话，不具有对话历史的记忆功能
-"""
+import json
 
-
+def get_cmeie_map (cmeie_des_path):
+    with open(cmeie_des_path,"r") as input_file:
+        des_dict = json.load(input_file)
+        rel_to_id = dict()
+        rel_type = des_dict["rel_type"]
+        for re_type,_ in rel_type.items():
+            rel_to_id[re_type] = len(rel_to_id)
+    return rel_to_id
+ 
 # 使用合并后的模型进行推理
 model_name_or_path = "Qwen_model/Qwen/Qwen-7B"      # Qwen模型权重路径
 adapter_name_or_path = "output_qwen/checkpoint-1125"     # sft后adapter权重路径
@@ -26,6 +32,7 @@ max_new_tokens = 500
 top_p = 0.9
 temperature = 0.35
 repetition_penalty = 1.0
+eval_batch = 4
 device = 'cuda:0'
 # 加载模型
 model = ModelUtils.load_model(
@@ -42,7 +49,16 @@ tokenizer = AutoTokenizer.from_pretrained(
     use_fast=False if model.config.model_type == 'llama' else True
 )
 
-
+"相关（导致）:[失眠症,睡眠障碍];\n病因:[失眠症,沉醉状态];[失眠症,药物戒断]"
+def eval(eval_path,despath,task = None):
+    cmeie_map = get_cmeie_map(despath)
+    with open(eval_path,"r"):
+        eval_list = json.load(eval_path)
+        all_sources = [example["conversations"] for example in eval_list]
+        eval_sources = list()
+        for i in range(len(all_sources)):
+            eval_sources.append[all_sources[i]]
+        preprocess    
 def main():
     text = input('User：')
     while True:

@@ -42,16 +42,15 @@ class TouYiEvalPrediction(EvalPrediction):
         predictions: Union[np.ndarray, Tuple[np.ndarray]],
         label_ids: Union[np.ndarray, Tuple[np.ndarray]],
         inputs: Union[np.ndarray, Tuple[np.ndarray]],
-        mission_type: Union[np.ndarray, Tuple[np.ndarray]],
+        metric_key_prefix: str,
         tokenizer: "PreTrainedTokenizerBase"
     ):
         super().__init__(predictions, label_ids, inputs)
-        self.mission_type = mission_type
+        self.metric_key_prefix = metric_key_prefix
         self.tokenizer = tokenizer
 
     def __iter__(self):
-
-        return iter((self.predictions, self.label_ids, self.inputs, self.mission_type, self.tokenizer))
+        return iter((self.predictions, self.label_ids, self.inputs, self.metric_key_prefix, self.tokenizer))
 
     def __getitem__(self, idx):
         if idx < 0 or idx > 4:
@@ -63,7 +62,7 @@ class TouYiEvalPrediction(EvalPrediction):
         elif idx == 2:
             return self.inputs
         elif idx == 3:
-            return self.mission_type
+            return self.metric_key_prefix
         elif idx == 4:
             return self.tokenizer
 
@@ -266,14 +265,12 @@ class TouYiTrainer(Trainer):
         preds_host = None
         labels_host = None
         inputs_host = None
-        inputs_mission_type_host = None
 
         # losses/preds/labels on CPU (final containers)
         all_losses = None
         all_preds = None
         all_labels = None
         all_inputs = None
-        all_inputs_mission_type = None
         # Will be useful when we have an iterable dataset so don't know its length.
 
         observed_num_examples = 0
@@ -320,11 +317,6 @@ class TouYiTrainer(Trainer):
             if labels is not None:
                 labels = self.accelerator.gather_for_metrics((labels))
                 labels_host = labels if labels_host is None else nested_concat(labels_host, labels, padding_index=-100)
-
-            if "mission_type" in inputs:
-                inputs_mission_type = self._prepare_input(inputs["mission_type"])
-                inputs_mission_type = self.accelerator.gather_for_metrics((inputs_mission_type))
-                inputs_mission_type_host = inputs_mission_type if inputs_mission_type_host is None else nested_concat(inputs_mission_type_host, inputs_mission_type)
 
             self.control = self.callback_handler.on_prediction_step(args, self.state, self.control)
 
@@ -375,9 +367,6 @@ class TouYiTrainer(Trainer):
         if labels_host is not None:
             labels = nested_numpify(labels_host)
             all_labels = labels if all_labels is None else nested_concat(all_labels, labels, padding_index=-100)
-        if inputs_mission_type_host is not None:
-            inputs_mission_type = nested_numpify(inputs_mission_type_host)
-            all_inputs_mission_type = inputs_mission_type if all_inputs_mission_type is None else nested_concat(all_inputs_mission_type, inputs_mission_type)
 
         # Number of samples
         if has_length(eval_dataset):
@@ -396,9 +385,9 @@ class TouYiTrainer(Trainer):
 
         # Metrics!
         if self.compute_metrics is not None and all_preds is not None and all_labels is not None:
-            if "mission_type" in inputs:
+            if metric_key_prefix != "eval":
                 metrics = self.compute_metrics(
-                    TouYiEvalPrediction(predictions=all_preds, label_ids=all_labels, inputs=all_inputs, mission_type=all_inputs_mission_type, tokenizer=self.tokenizer)
+                    TouYiEvalPrediction(predictions=all_preds, label_ids=all_labels, inputs=all_inputs, metric_key_prefix=metric_key_prefix, tokenizer=self.tokenizer)
                 )
             else:
                 metrics = self.compute_metrics(

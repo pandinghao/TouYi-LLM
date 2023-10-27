@@ -2,11 +2,16 @@ import os
 os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 from transformers import AutoTokenizer
 import torch
+from torch.utils.data import DataLoader
 import sys
 sys.path.append("./")
 from finetune import SupervisedDataset,preprocess
 from utils import ModelUtils
 import json
+from tqdm import tqdm
+from transformers.trainer_pt_utils import LabelSmoother
+
+IGNORE_TOKEN_ID = LabelSmoother.ignore_index
 
 def get_cmeie_map (cmeie_des_path):
     with open(cmeie_des_path,"r") as input_file:
@@ -34,6 +39,9 @@ temperature = 0.35
 repetition_penalty = 1.0
 eval_batch = 4
 device = 'cuda:0'
+eval_path = "data/processed/cmeie_eval.json"
+task = "cmeie"
+despath = "data/cmeie_v2-des.json"
 # 加载模型
 model = ModelUtils.load_model(
     model_name_or_path,
@@ -48,46 +56,62 @@ tokenizer = AutoTokenizer.from_pretrained(
     # llama不支持fast
     use_fast=False if model.config.model_type == 'llama' else True
 )
+def get_result_for_cmeie(response):
+    type_relations = response.split(";\n")
+    for type_relation in type_relations:
+        re_type, type_results = type_relation.split(":") 
+        type_results = type_results.split(";")
+        for type_result in type_results:
+            type_result = type_result.strip('[').strip(']')
+            [ent1,ent2] = type_result.split(',')
+            predic_triple = "(" + ent1 + "," + ent2 + "," + re_type + ")"
+            predic_r_triple = "(" + ent2 + "," + ent1 + "," + re_type + ")"
+    return predic_triple,predic_r_triple
 
 "相关（导致）:[失眠症,睡眠障碍];\n病因:[失眠症,沉醉状态];[失眠症,药物戒断]"
-def eval(eval_path,despath,task = None):
+def eval(eval_path, despath, task = None):
     cmeie_map = get_cmeie_map(despath)
-    with open(eval_path,"r"):
-        eval_list = json.load(eval_path)
-        all_sources = [example["conversations"] for example in eval_list]
-        eval_sources = list()
-        for i in range(len(all_sources)):
-            eval_sources.append[all_sources[i]]
-        preprocess    
-def main():
-    text = input('User：')
-    while True:
-        if tokenizer.__class__.__name__ == 'QWenTokenizer':
-            tokenizer.pad_token_id = tokenizer.eod_id
-            tokenizer.bos_token_id = tokenizer.eod_id
-            tokenizer.eos_token_id = tokenizer.eod_id
-        data_dict = preprocess([conversation], tokenizer, 1024, test_flag = True)
-        print(data_dict)
-        input_ids = data_dict["input_ids"].to(device)
-        labels = data_dict["labels"]
-        attention_mask = data_dict["attention_mask"]
-        #input_ids = tokenizer(text, return_tensors="pt", add_special_tokens=False).input_ids.to(device)
-        #bos_token_id = torch.tensor([[tokenizer.bos_token_id]], dtype=torch.long).to(device)
-        #eos_token_id = torch.tensor([[tokenizer.eos_token_id]], dtype=torch.long).to(device)
-        #input_ids = torch.concat([bos_token_id, input_ids, eos_token_id], dim=1)
-        with torch.no_grad():
+    with open(eval_path,"r") as evalfile:
+        eval_list = json.load(evalfile)
+        test_dataset = SupervisedDataset(raw_data=eval_list,tokenizer=tokenizer,max_len = 1024,test_flag = True)
+        test_iters = DataLoader(dataset = test_dataset,
+                    shuffle = False, 
+                    drop_last = False,
+                    batch_size = eval_batch)
+    if tokenizer.__class__.__name__ == 'QWenTokenizer':
+        tokenizer.pad_token_id = tokenizer.eod_id
+        tokenizer.bos_token_id = tokenizer.eod_id
+        tokenizer.eos_token_id = tokenizer.eod_id
+    with torch.no_grad():
+        for tests in tqdm(test_iters):
+            input_ids = tests["input_ids"]
+            labels = tests["target"]
             outputs = model.generate(
                 input_ids=input_ids, max_new_tokens=max_new_tokens, do_sample=True,
                 top_p=top_p, temperature=temperature, repetition_penalty=repetition_penalty,
                 eos_token_id=tokenizer.eos_token_id
             )
-        #print(model)
-        outputs = outputs.tolist()[0][len(input_ids[0]):]
-        #print(len(outputs))
-        response = tokenizer.decode(outputs,skip_special_tokens = False)
-        #response = response.strip().replace(tokenizer.eos_token, "").strip()
-        print("Touyi：{}".format(response))
-        text = input('User：')
+            outputs = outputs.tolist()[:][0][len(input_ids[0]):]
+            labels = labels.tolist()[:][len(input_ids[0]):]
+            #print(len(outputs))
+            response = tokenizer.decode(outputs,skip_special_tokens = False)
+            labels_response = tokenizer.decode()
+            if task == "cmeie":
+                type_relations = response.split(";\n")
+                for type_relation in type_relations:
+                    re_type, type_results = type_relation.split(":") 
+                    type_results = type_results.split(";")
+                    for type_result in type_results:
+                        type_result = type_result.strip('[').strip(']')
+                        [ent1,ent2] = type_result.split(',')
+                        predic_triple = "(" + ent1 + "," + ent2 + "," + re_type + ")"
+                        predic_r_triple = "(" + ent2 + "," + ent1 + "," + re_type + ")"
+                        
+
+
+
+                    
+
 
 
 if __name__ == '__main__':

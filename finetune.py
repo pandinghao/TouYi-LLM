@@ -180,8 +180,9 @@ def preprocess(
         if test_flag :
             input_id += tokenizer("助手").input_ids + nl_tokens
             target += [IGNORE_TOKEN_ID] * (len(tokenizer("助手").input_ids) + 1)
+            #左padding
             if len(input_id) < max_len:
-                #input_id = [tokenizer.pad_token_id] * (max_len - len(input_id)) + input_id
+                input_id = [tokenizer.pad_token_id] * (max_len - len(input_id)) + input_id
                 target = [IGNORE_TOKEN_ID] * (max_len - len(target)) + target
         else:
             if len(input_id) < max_len:
@@ -204,12 +205,12 @@ def preprocess(
 class SupervisedDataset(Dataset):
     """Dataset for supervised fine-tuning."""
 
-    def __init__(self, raw_data, tokenizer: transformers.PreTrainedTokenizer, max_len: int):
+    def __init__(self, raw_data, tokenizer: transformers.PreTrainedTokenizer, max_len: int, test_flag = False):
         super(SupervisedDataset, self).__init__()
 
         rank0_print("Formatting inputs...")
         sources = [example["conversations"] for example in raw_data]
-        data_dict = preprocess(sources, tokenizer, max_len)
+        data_dict = preprocess(sources, tokenizer, max_len,test_flag)
 
         self.input_ids = data_dict["input_ids"]
         self.labels = data_dict["labels"]

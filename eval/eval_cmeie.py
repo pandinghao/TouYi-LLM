@@ -1,5 +1,5 @@
 import os
-os.environ["CUDA_VISIBLE_DEVICES"] = "1"
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 from transformers import AutoTokenizer
 import torch
 from torch.utils.data import DataLoader
@@ -24,7 +24,7 @@ def get_cmeie_map (cmeie_des_path):
  
 # 使用合并后的模型进行推理
 model_name_or_path = "Qwen_model/Qwen/Qwen-7B"      # Qwen模型权重路径
-adapter_name_or_path = "output_qwen_from8800/checkpoint-11000"     # sft后adapter权重路径
+adapter_name_or_path = "output_qwen_from8800/checkpoint-5500"     # sft后adapter权重路径
 
 # 使用base model和adapter进行推理，无需手动合并权重
 # model_name_or_path = 'baichuan-inc/Baichuan-7B'
@@ -37,9 +37,9 @@ max_new_tokens = 500
 top_p = 0.9
 temperature = 0.35
 repetition_penalty = 1.0
-eval_batch = 3
+eval_batch = 1
 device = 'cuda'
-eval_path = "data/processed/cmeie_eval.json"
+eval_path = "data/processed/cmeie_eval_debug.json"
 task = "cmeie"
 despath = "data/cmeie_v2-des.json"
 # 加载模型
@@ -57,6 +57,8 @@ tokenizer = AutoTokenizer.from_pretrained(
     use_fast=False if model.config.model_type == 'llama' else True
 )
 def get_result_for_cmeie(response):
+    if response == '':
+        return [],[]
     predic_triples = list()
     predic_r_triples = list()
     type_relations = response.split(";\n")
@@ -70,9 +72,8 @@ def get_result_for_cmeie(response):
             predic_r_triple = "(" + ent2 + "," + ent1 + "," + re_type + ")"
             predic_triples.append(predic_triple)
             predic_r_triples.append(predic_r_triple)
+    print(predic_triples)
     return predic_triples,predic_r_triples
-
-"相关（导致）:[失眠症,睡眠障碍];\n病因:[失眠症,沉醉状态];[失眠症,药物戒断]"
 def eval(eval_path, despath, task = None):
     cmeie_map = get_cmeie_map(despath)
     with open(eval_path,"r") as evalfile:
@@ -90,7 +91,7 @@ def eval(eval_path, despath, task = None):
         all_pre_cnt = 0
         gold_cnt = 0
         correct_cnt = 0
-        for tests in tqdm(test_iters):
+        for tests in test_iters:
             input_ids = tests["input_ids"].to(device)
             labels = tests["labels"].to(device)
             outputs = model.generate(
@@ -98,14 +99,39 @@ def eval(eval_path, despath, task = None):
                 top_p=top_p, temperature=temperature, repetition_penalty=repetition_penalty,
                 eos_token_id=tokenizer.eos_token_id
             )
-            outputs = outputs.tolist()[:][0][len(input_ids[0]):]
-            labels = labels.tolist()[:][len(input_ids[0]):]
+            print("inputs")
+            print(input_ids)
+            print("outputs")
+            outputs = outputs.tolist()
+            print(outputs)
+            new_outputs = []
+            for i,output in enumerate(outputs):
+                output = output[len(input_ids[i]):]
+                new_outputs.append(output)
+            outputs = new_outputs
+            print(outputs)
+            print("labels")
+            print(labels)
+            labels = labels.tolist()
+            new_labels = []
+            for i,label in enumerate(labels):
+                new_labels.append(label)
+            labels = new_labels
+            print(labels)
             #print(len(outputs))
-            responses = tokenizer.decode(outputs,skip_special_tokens = True)
-            label_responses = tokenizer.decode(labels,skip_special_tokens=True)
+            responses = tokenizer.batch_decode(outputs,skip_special_tokens = True)
+            label_responses = tokenizer.batch_decode(labels,skip_special_tokens=True)
+            print(responses)
+            print(label_responses)
             if task == "cmeie":
                 for i,(response,label_response) in enumerate(zip(responses,label_responses)):
-                    predic_triples,predic_r_triples = get_result_for_cmeie(response = response)
+                    #print(response)
+                    #print(label_response)
+                    try:
+                        predic_triples,predic_r_triples = get_result_for_cmeie(response = response)
+                    except:
+                        predic_triples = []
+                        predic_r_triples = []
                     label_triples,_ = get_result_for_cmeie(response = label_response)
                     for predic_triple in predic_triples:
                         if predic_triple in label_triples:
@@ -115,11 +141,16 @@ def eval(eval_path, despath, task = None):
                             correct_cnt += 1
                     all_pre_cnt += len(predic_triples)
                     gold_cnt += len(label_triples)
-        if all_pre_cnt == 0 :
-            f1 = 0
-        precision = correct_cnt/all_pre_cnt
-        recall = correct_cnt/gold_cnt
-        f1 = 2*precision*recall/(precision + recall)
+            if all_pre_cnt == 0 or correct_cnt == 0 :
+                f1 = 0
+            else:
+                precision = correct_cnt/all_pre_cnt
+                recall = correct_cnt/gold_cnt
+                f1 = 2*precision*recall/(precision + recall)
+            print("f1")
+            print(f1)
+        print("final_f1")
+        print(f1)
     return precision, recall, f1
 
                     

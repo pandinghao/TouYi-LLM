@@ -153,37 +153,46 @@ def preprocess(
             source = source[1:]
         '''
         input_id, target = [tokenizer.bos_token_id], [IGNORE_TOKEN_ID]
+        
         '''
         if system_message :
             system =  _system + tokenizer(system_message).input_ids + [tokenizer.eos_token_id]
             input_id += system
             target +=  [IGNORE_TOKEN_ID] * (len(system)) 
         '''
-        assert len(input_id) == len(target)
+        if test_flag:
+            target = []
         for j, sentence in enumerate(source):
             role = roles[sentence["from"]]
             #role = sentence["from"]
-            _input_id = tokenizer(role).input_ids + nl_tokens + \
-                tokenizer(sentence["value"]).input_ids + [tokenizer.eos_token_id]
+            if role == '用户' or (role == '助手' and not test_flag):
+                _input_id = tokenizer(role).input_ids + nl_tokens + \
+                    tokenizer(sentence["value"]).input_ids + [tokenizer.eos_token_id]
             #print(sentence["value"])
             input_id += _input_id
-            if role == '用户':
-                _target = [IGNORE_TOKEN_ID] * (len(_input_id))
-            elif role == '助手':
-                _target = [IGNORE_TOKEN_ID] * (len(tokenizer(role).input_ids) + 1) + \
-                    _input_id[len(tokenizer(role).input_ids) + 1:] 
+            if test_flag :
+                if role == '助手':
+                    _target = tokenizer(sentence["value"]).input_ids + [tokenizer.eos_token_id]
+                    target += _target
             else:
-                raise NotImplementedError
-            target += _target
+                if role == '用户':
+                    _target = [IGNORE_TOKEN_ID] * (len(_input_id))
+                elif role == '助手' :
+                    _target = [IGNORE_TOKEN_ID] * (len(tokenizer(role).input_ids) + 1) + \
+                        tokenizer(sentence["value"]).input_ids + [tokenizer.eos_token_id]
+                else:
+                    raise NotImplementedError
+                target += _target
         att_mask = [1] * len(input_id)
-        assert len(input_id) == len(target)
+        if not test_flag:
+            assert len(input_id) == len(target)
         if test_flag :
             input_id += tokenizer("助手").input_ids + nl_tokens
-            target += [IGNORE_TOKEN_ID] * (len(tokenizer("助手").input_ids) + 1)
+            #target += [IGNORE_TOKEN_ID] * (len(tokenizer("助手").input_ids) + 1)
             #左padding
-            if len(input_id) < max_len:
-                input_id = [tokenizer.pad_token_id] * (max_len - len(input_id)) + input_id
-                target = [IGNORE_TOKEN_ID] * (max_len - len(target)) + target
+            #if len(input_id) < max_len:
+                #input_id = [tokenizer.pad_token_id] * (max_len - len(input_id)) + input_id
+                #target = [IGNORE_TOKEN_ID] * (max_len - len(target)) + target
         else:
             if len(input_id) < max_len:
                 input_id += [tokenizer.pad_token_id] * (max_len - len(input_id))
@@ -192,9 +201,6 @@ def preprocess(
         input_ids.append(input_id[:max_len])
         targets.append(target[:max_len])
         attention_mask.append(att_mask[:max_len])
-    input_ids = torch.tensor(input_ids, dtype=torch.int)
-    targets = torch.tensor(targets, dtype=torch.int)
-    attention_mask = torch.tensor(attention_mask, dtype=torch.int)
     return dict(
         input_ids=input_ids,
         labels=targets,
@@ -210,7 +216,7 @@ class SupervisedDataset(Dataset):
 
         rank0_print("Formatting inputs...")
         sources = [example["conversations"] for example in raw_data]
-        data_dict = preprocess(sources, tokenizer, max_len,test_flag)
+        data_dict = preprocess(sources, tokenizer, max_len,test_flag = test_flag)
 
         self.input_ids = data_dict["input_ids"]
         self.labels = data_dict["labels"]
@@ -221,9 +227,9 @@ class SupervisedDataset(Dataset):
 
     def __getitem__(self, i) -> Dict[str, torch.Tensor]:
         return dict(
-            input_ids=self.input_ids[i],
-            labels=self.labels[i],
-            attention_mask=self.attention_mask[i],
+            input_ids = torch.tensor(self.input_ids[i], dtype=torch.int),
+            labels = torch.tensor(self.labels[i], dtype=torch.int),
+            attention_mask = torch.tensor(self.attention_mask[i], dtype=torch.int),
         )
 
 

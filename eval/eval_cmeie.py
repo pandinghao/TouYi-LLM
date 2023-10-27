@@ -57,6 +57,8 @@ tokenizer = AutoTokenizer.from_pretrained(
     use_fast=False if model.config.model_type == 'llama' else True
 )
 def get_result_for_cmeie(response):
+    predic_triples = list()
+    predic_r_triples = list()
     type_relations = response.split(";\n")
     for type_relation in type_relations:
         re_type, type_results = type_relation.split(":") 
@@ -66,7 +68,9 @@ def get_result_for_cmeie(response):
             [ent1,ent2] = type_result.split(',')
             predic_triple = "(" + ent1 + "," + ent2 + "," + re_type + ")"
             predic_r_triple = "(" + ent2 + "," + ent1 + "," + re_type + ")"
-    return predic_triple,predic_r_triple
+            predic_triples.append(predic_triple)
+            predic_r_triples.append(predic_r_triple)
+    return predic_triples,predic_r_triples
 
 "相关（导致）:[失眠症,睡眠障碍];\n病因:[失眠症,沉醉状态];[失眠症,药物戒断]"
 def eval(eval_path, despath, task = None):
@@ -83,6 +87,9 @@ def eval(eval_path, despath, task = None):
         tokenizer.bos_token_id = tokenizer.eod_id
         tokenizer.eos_token_id = tokenizer.eod_id
     with torch.no_grad():
+        all_pre_cnt = 0
+        gold_cnt = 0
+        correct_cnt = 0
         for tests in tqdm(test_iters):
             input_ids = tests["input_ids"]
             labels = tests["target"]
@@ -94,19 +101,30 @@ def eval(eval_path, despath, task = None):
             outputs = outputs.tolist()[:][0][len(input_ids[0]):]
             labels = labels.tolist()[:][len(input_ids[0]):]
             #print(len(outputs))
-            response = tokenizer.decode(outputs,skip_special_tokens = False)
-            labels_response = tokenizer.decode()
+            responses = tokenizer.decode(outputs,skip_special_tokens = True)
+            label_responses = tokenizer.decode(labels,skip_special_tokens=True)
             if task == "cmeie":
-                type_relations = response.split(";\n")
-                for type_relation in type_relations:
-                    re_type, type_results = type_relation.split(":") 
-                    type_results = type_results.split(";")
-                    for type_result in type_results:
-                        type_result = type_result.strip('[').strip(']')
-                        [ent1,ent2] = type_result.split(',')
-                        predic_triple = "(" + ent1 + "," + ent2 + "," + re_type + ")"
-                        predic_r_triple = "(" + ent2 + "," + ent1 + "," + re_type + ")"
-                        
+                for i,(response,label_response) in enumerate(zip(responses,label_responses)):
+                    predic_triples,predic_r_triples = get_result_for_cmeie(response = response)
+                    label_triples,_ = get_result_for_cmeie(response = label_response)
+                    for predic_triple in predic_triples:
+                        if predic_triple in label_triples:
+                            correct_cnt += 1 
+                    for predic_r_triple in predic_r_triples:
+                        if predic_r_triple in label_triples:
+                            correct_cnt += 1
+                    all_pre_cnt += len(predic_triples)
+                    gold_cnt += len(label_triples)
+        if all_pre_cnt == 0 :
+            f1 = 0
+        precision = correct_cnt/all_pre_cnt
+        recall = correct_cnt/gold_cnt
+        f1 = 2*precision*recall/(precision + recall)
+    return precision, recall, f1
+
+                    
+                
+            
 
 
 

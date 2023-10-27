@@ -2,7 +2,8 @@ from transformers import AutoModelForCausalLM, BitsAndBytesConfig
 import torch
 from peft import PeftModel
 import bitsandbytes as bnb
-
+import os
+os.environ["CUDA_VISIBLE_DEVICES"] = "1"
 class ModelUtils(object):
 
     @classmethod

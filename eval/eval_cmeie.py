@@ -1,5 +1,5 @@
 import os
-os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+os.environ["CUDA_VISIBLE_DEVICES"] = "1"
 from transformers import AutoTokenizer
 import torch
 from torch.utils.data import DataLoader
@@ -24,21 +24,21 @@ def get_cmeie_map (cmeie_des_path):
  
 # 使用合并后的模型进行推理
 model_name_or_path = "Qwen_model/Qwen/Qwen-7B"      # Qwen模型权重路径
-adapter_name_or_path = "output_qwen/checkpoint-2200"     # sft后adapter权重路径
+adapter_name_or_path = "output_qwen_from8800/checkpoint-11000"     # sft后adapter权重路径
 
 # 使用base model和adapter进行推理，无需手动合并权重
 # model_name_or_path = 'baichuan-inc/Baichuan-7B'
 # adapter_name_or_path = 'YeungNLP/firefly-baichuan-7b-qlora-sft'
 
 # 是否使用4bit进行推理，能够节省很多显存，但效果可能会有一定的下降
-load_in_4bit = True
+load_in_4bit = False
 # 生成超参配置
 max_new_tokens = 500
 top_p = 0.9
 temperature = 0.35
 repetition_penalty = 1.0
-eval_batch = 4
-device = 'cuda:0'
+eval_batch = 3
+device = 'cuda'
 eval_path = "data/processed/cmeie_eval.json"
 task = "cmeie"
 despath = "data/cmeie_v2-des.json"
@@ -48,7 +48,7 @@ model = ModelUtils.load_model(
     load_in_4bit=load_in_4bit,
     adapter_name_or_path=adapter_name_or_path
 ).eval()
-
+model.torch_dtype=torch.float32
 tokenizer = AutoTokenizer.from_pretrained(
     model_name_or_path,
     trust_remote_code=True,
@@ -77,22 +77,22 @@ def eval(eval_path, despath, task = None):
     cmeie_map = get_cmeie_map(despath)
     with open(eval_path,"r") as evalfile:
         eval_list = json.load(evalfile)
+        if tokenizer.__class__.__name__ == 'QWenTokenizer':
+            tokenizer.pad_token_id = tokenizer.eod_id
+            tokenizer.bos_token_id = tokenizer.eod_id
+            tokenizer.eos_token_id = tokenizer.eod_id
         test_dataset = SupervisedDataset(raw_data=eval_list,tokenizer=tokenizer,max_len = 1024,test_flag = True)
         test_iters = DataLoader(dataset = test_dataset,
                     shuffle = False, 
                     drop_last = False,
                     batch_size = eval_batch)
-    if tokenizer.__class__.__name__ == 'QWenTokenizer':
-        tokenizer.pad_token_id = tokenizer.eod_id
-        tokenizer.bos_token_id = tokenizer.eod_id
-        tokenizer.eos_token_id = tokenizer.eod_id
     with torch.no_grad():
         all_pre_cnt = 0
         gold_cnt = 0
         correct_cnt = 0
         for tests in tqdm(test_iters):
-            input_ids = tests["input_ids"]
-            labels = tests["target"]
+            input_ids = tests["input_ids"].to(device)
+            labels = tests["labels"].to(device)
             outputs = model.generate(
                 input_ids=input_ids, max_new_tokens=max_new_tokens, do_sample=True,
                 top_p=top_p, temperature=temperature, repetition_penalty=repetition_penalty,
@@ -133,4 +133,5 @@ def eval(eval_path, despath, task = None):
 
 
 if __name__ == '__main__':
-    main()
+    precision, recall, f1 = eval(eval_path=eval_path,despath=despath,task=task)
+    print(f1)

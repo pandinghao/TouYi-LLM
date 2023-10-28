@@ -244,10 +244,11 @@ class SupervisedDataset(Dataset):
 class LazySupervisedDataset(Dataset):
     """Dataset for supervised fine-tuning."""
 
-    def __init__(self, raw_data, tokenizer: transformers.PreTrainedTokenizer, max_len: int):
+    def __init__(self, raw_data, tokenizer: transformers.PreTrainedTokenizer, max_len: int, test_flag=False):
         super(LazySupervisedDataset, self).__init__()
         self.tokenizer = tokenizer
         self.max_len = max_len
+        self.test_flag=test_flag
 
         rank0_print("Formatting inputs...Skip in lazy mode")
         self.tokenizer = tokenizer
@@ -261,7 +262,7 @@ class LazySupervisedDataset(Dataset):
         if i in self.cached_data_dict:
             return self.cached_data_dict[i]
 
-        ret = preprocess([self.raw_data[i]["conversations"]], self.tokenizer, self.max_len)
+        ret = preprocess([self.raw_data[i]["conversations"]], self.tokenizer, self.max_len, test_flag=self.test_flag)
         ret = dict(
             input_ids=ret["input_ids"][0],
             labels=ret["labels"][0],

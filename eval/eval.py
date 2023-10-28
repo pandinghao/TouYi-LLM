@@ -189,6 +189,56 @@ def eval(eval_path, despath, task = None):
         print("final_f1")
         print(f1)
     return precision, recall, f1
+def eval_for_evalset(preds,labels,):
+    responses = tokenizer.batch_decode(preds,skip_special_tokens = True)
+    label_responses = tokenizer.batch_decode(labels,skip_special_tokens=True)
+    for i,(response,label_response) in enumerate(zip(responses,label_responses)):
+
+    print(responses)
+    print(label_responses)
+    if task == "cmeee":
+        for i,(response,label_response) in enumerate(zip(responses,label_responses)):
+            #print(response)
+            #print(label_response)
+            try:
+                ner_pred_results = get_result_for_cmeee(response = response)
+            except:
+                ner_pred_results = []
+            ner_labels = get_result_for_cmeee(response = label_response)
+            for ner_pred_result in ner_pred_results:
+                if ner_pred_result in ner_labels:
+                    correct_cnt += 1
+            all_pre_cnt += len(ner_pred_results)
+            gold_cnt += len(ner_labels)
+    if task == "cmeie":
+        for i,(response,label_response) in enumerate(zip(responses,label_responses)):
+            #print(response)
+            #print(label_response)
+            try:
+                predic_triples,predic_r_triples = get_result_for_cmeie(response = response)
+            except:
+                predic_triples = []
+                predic_r_triples = []
+            label_triples,_ = get_result_for_cmeie(response = label_response)
+            for predic_triple in predic_triples:
+                if predic_triple in label_triples:
+                    correct_cnt += 1 
+            for predic_r_triple in predic_r_triples:
+                if predic_r_triple in label_triples:
+                    correct_cnt += 1
+            all_pre_cnt += len(predic_triples)
+            gold_cnt += len(label_triples)
+    if all_pre_cnt == 0 or correct_cnt == 0 :
+        f1 = 0
+    else:
+        precision = correct_cnt/all_pre_cnt
+        recall = correct_cnt/gold_cnt
+        f1 = 2*precision*recall/(precision + recall)
+            print("f1")
+            print(f1)
+        print("final_f1")
+        print(f1)
+    return precision, recall, f1
 
                     
                 

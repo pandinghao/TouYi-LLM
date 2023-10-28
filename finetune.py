@@ -287,7 +287,7 @@ def make_supervised_data_module(
         for eval_data_name, eval_data_path in list(zip(data_args.eval_data_name, data_args.eval_data_path)):
             print(eval_data_name, eval_data_path)
             eval_json = json.load(open(eval_data_path, "r"))
-            dataset = dataset_cls(eval_json, tokenizer=tokenizer, max_len=max_len)
+            dataset = dataset_cls(eval_json, tokenizer=tokenizer, max_len=max_len,test_flag=True)
             eval_dataset[eval_data_name]=dataset
     else:
         eval_dataset = None
@@ -297,10 +297,13 @@ def make_supervised_data_module(
 def compute_metrics(p: TouYiEvalPrediction):    
     ret = dict()    # 必须返回字典
     preds, labels, input_ids, metric_key_prefix, tokenizer = p
-
+    tokenize.decode
     if metric_key_prefix.endswith("NER"):
+        task = 'cmeee'
         pass    # 计算指标P R F 存入字典，字典的key就写P R F就行，数据集类型的前缀(NER, RE)trainer中自己会加
     elif metric_key_prefix.endswith("RE"):
+        task = 'cmeie'
+
         pass    # 计算指标P R F 存入字典，字典的key就写P R F就行，数据集类型的前缀(NER, RE)trainer中自己会加
     else:
         pass    # 不需要计算指标的不进行处理，直接返回空字典

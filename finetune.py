@@ -20,7 +20,6 @@ from accelerate.utils import DistributedType
 from utils import find_all_linear_names
 from torch.utils.tensorboard import SummaryWriter   # 通过注释这个来控制是否使用tensorboard
 from my_trainer import TouYiTrainer, TouYiEvalPrediction
-from eval_code import eval_for_evalset
 
 IGNORE_TOKEN_ID = LabelSmoother.ignore_index
 
@@ -303,14 +302,14 @@ def compute_metrics(p: TouYiEvalPrediction):
     preds, labels, input_ids, metric_key_prefix, tokenizer = p
     if metric_key_prefix.endswith("NER"):
         task = 'cmeee'
-        precision, recall, f1 = eval_for_evalset(preds=preds,labels=labels,task=task)
+        precision, recall, f1 = eval_for_evalset(preds=preds,labels=labels,task=task,tokenizer=tokenizer)
         ret["P"] = precision
         ret["R"] = recall
         ret["F"] = f1
         # 计算指标P R F 存入字典，字典的key就写P R F就行，数据集类型的前缀(NER, RE)trainer中自己会加
     elif metric_key_prefix.endswith("RE"):
         task = 'cmeie'
-        precision, recall, f1 = eval_for_evalset(preds=preds,labels=labels,task=task)
+        precision, recall, f1 = eval_for_evalset(preds=preds,labels=labels,task=task,tokenizer=tokenizer)
         ret["P"] = precision
         ret["R"] = recall
         ret["F"] = f1
@@ -451,7 +450,94 @@ def train():
     trainer.save_state()
 
     safe_save_model_for_hf_trainer(trainer=trainer, output_dir=training_args.output_dir, bias=lora_args.lora_bias)
+def get_result_for_cmeee(response):
+    if response == '':
+        return []
+    try:
+        type_ents = response.strip('\n').split('\n')
+        ner_results = list()
+        for type_ent in type_ents:
+            ner_type,type_results = type_ent.split('：')
+            type_results = type_results.split("; ")
+            for ent in type_results:
+                ner_results.append(ner_type + ',' + ent)
+    except:
+        return []
+    return ner_results
 
+
+
+
+
+def get_result_for_cmeie(response):
+    if response == '':
+        return [],[]
+    predic_triples = list()
+    predic_r_triples = list()
+    type_relations = response.split(";\n")
+    try:
+        for type_relation in type_relations:
+            re_type, type_results = type_relation.split(":") 
+            type_results = type_results.split(";")
+            for type_result in type_results:
+                type_result = type_result.strip('[').strip(']')
+                [ent1,ent2] = type_result.split(',')
+                predic_triple = "(" + ent1 + "," + ent2 + "," + re_type + ")"
+                predic_r_triple = "(" + ent2 + "," + ent1 + "," + re_type + ")"
+                predic_triples.append(predic_triple)
+                predic_r_triples.append(predic_r_triple)
+    except:
+        return [],[]
+    print(predic_triples)
+    return predic_triples,predic_r_triples
+def eval_for_evalset(preds,labels,tokenizer,task = None):
+    gold_cnt = 0
+    all_pre_cnt = 0
+    correct_cnt = 0
+    responses = tokenizer.batch_decode(preds,skip_special_tokens = True)
+    label_responses = tokenizer.batch_decode(labels,skip_special_tokens=True)
+    for i,(response,label_response) in enumerate(zip(responses,label_responses)):
+        print(response)
+        print(label_response)
+        if task == "cmeee":
+            for i,(response,label_response) in enumerate(zip(responses,label_responses)):
+                #print(response)
+                #print(label_response)
+                try:
+                    ner_pred_results = get_result_for_cmeee(response = response)
+                except:
+                    ner_pred_results = []
+                ner_labels = get_result_for_cmeee(response = label_response)
+                for ner_pred_result in ner_pred_results:
+                    if ner_pred_result in ner_labels:
+                        correct_cnt += 1
+                all_pre_cnt += len(ner_pred_results)
+                gold_cnt += len(ner_labels)
+        if task == "cmeie":
+            for i,(response,label_response) in enumerate(zip(responses,label_responses)):
+                #print(response)
+                #print(label_response)
+                try:
+                    predic_triples,predic_r_triples = get_result_for_cmeie(response = response)
+                except:
+                    predic_triples = []
+                    predic_r_triples = []
+                label_triples,_ = get_result_for_cmeie(response = label_response)
+                for predic_triple in predic_triples:
+                    if predic_triple in label_triples:
+                        correct_cnt += 1 
+                for predic_r_triple in predic_r_triples:
+                    if predic_r_triple in label_triples:
+                        correct_cnt += 1
+                all_pre_cnt += len(predic_triples)
+                gold_cnt += len(label_triples)
+    if all_pre_cnt == 0 or correct_cnt == 0 :
+        f1 = 0
+    else:
+        precision = correct_cnt/all_pre_cnt
+        recall = correct_cnt/gold_cnt
+        f1 = 2*precision*recall/(precision + recall)
+    return precision, recall, f1
 
 if __name__ == "__main__":
     train()

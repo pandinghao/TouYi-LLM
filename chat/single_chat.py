@@ -51,8 +51,8 @@ def main():
             tokenizer.bos_token_id = tokenizer.eod_id
             tokenizer.eos_token_id = tokenizer.eod_id
         data_dict = preprocess([conversation], tokenizer, 1024, test_flag = True)
-        print(data_dict)
-        input_ids = data_dict["input_ids"].to(device)
+        input_ids = data_dict["input_ids"]
+        input_ids = torch.tensor(input_ids, dtype=torch.int).to(device=device)
         labels = data_dict["labels"]
         attention_mask = data_dict["attention_mask"]
         #input_ids = tokenizer(text, return_tensors="pt", add_special_tokens=False).input_ids.to(device)

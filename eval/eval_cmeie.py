@@ -24,7 +24,7 @@ def get_cmeie_map (cmeie_des_path):
  
 # 使用合并后的模型进行推理
 model_name_or_path = "Qwen_model/Qwen/Qwen-7B"      # Qwen模型权重路径
-adapter_name_or_path = "output_qwen_from8800/checkpoint-5500"     # sft后adapter权重路径
+adapter_name_or_path = "output_qwen_from8800/checkpoint-4400"     # sft后adapter权重路径
 
 # 使用base model和adapter进行推理，无需手动合并权重
 # model_name_or_path = 'baichuan-inc/Baichuan-7B'
@@ -39,9 +39,10 @@ temperature = 0.35
 repetition_penalty = 1.0
 eval_batch = 1
 device = 'cuda'
-eval_path = "data/processed/cmeie_eval_debug.json"
-task = "cmeie"
-despath = "data/cmeie_v2-des.json"
+#eval_path = "data/processed/cmeie_eval_debug.json"
+eval_path = "data/processed/cmeee_v2-eval_set.json"
+task = "cmeee"
+despath = "data/cmeee_v2-des.json"
 # 加载模型
 model = ModelUtils.load_model(
     model_name_or_path,
@@ -56,6 +57,22 @@ tokenizer = AutoTokenizer.from_pretrained(
     # llama不支持fast
     use_fast=False if model.config.model_type == 'llama' else True
 )
+def get_result_for_cmeee(response):
+    if response == '':
+        return []
+    type_ents = response.strip('\n').split('\n')
+    ner_results = list()
+    for type_ent in type_ents:
+        ner_type,type_results = type_ent.split('：')
+        type_results = type_results.split("; ")
+        for ent in type_results:
+            ner_results.append(ner_type + ',' + ent)
+    return ner_results
+
+
+
+
+
 def get_result_for_cmeie(response):
     if response == '':
         return [],[]
@@ -75,7 +92,7 @@ def get_result_for_cmeie(response):
     print(predic_triples)
     return predic_triples,predic_r_triples
 def eval(eval_path, despath, task = None):
-    cmeie_map = get_cmeie_map(despath)
+    #cmeie_map = get_cmeie_map(despath)
     with open(eval_path,"r") as evalfile:
         eval_list = json.load(evalfile)
         if tokenizer.__class__.__name__ == 'QWenTokenizer':
@@ -123,6 +140,20 @@ def eval(eval_path, despath, task = None):
             label_responses = tokenizer.batch_decode(labels,skip_special_tokens=True)
             print(responses)
             print(label_responses)
+            if task == "cmeee":
+                for i,(response,label_response) in enumerate(zip(responses,label_responses)):
+                    #print(response)
+                    #print(label_response)
+                    try:
+                        ner_pred_results = get_result_for_cmeee(response = response)
+                    except:
+                        ner_pred_results = []
+                    ner_labels = get_result_for_cmeee(response = label_response)
+                    for ner_pred_result in ner_pred_results:
+                        if ner_pred_result in ner_labels:
+                            correct_cnt += 1
+                    all_pre_cnt += len(ner_pred_results)
+                    gold_cnt += len(ner_labels)
             if task == "cmeie":
                 for i,(response,label_response) in enumerate(zip(responses,label_responses)):
                     #print(response)

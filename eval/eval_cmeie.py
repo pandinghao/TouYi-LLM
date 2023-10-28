@@ -60,13 +60,16 @@ tokenizer = AutoTokenizer.from_pretrained(
 def get_result_for_cmeee(response):
     if response == '':
         return []
-    type_ents = response.strip('\n').split('\n')
-    ner_results = list()
-    for type_ent in type_ents:
-        ner_type,type_results = type_ent.split('：')
-        type_results = type_results.split("; ")
-        for ent in type_results:
-            ner_results.append(ner_type + ',' + ent)
+    try:
+        type_ents = response.strip('\n').split('\n')
+        ner_results = list()
+        for type_ent in type_ents:
+            ner_type,type_results = type_ent.split('：')
+            type_results = type_results.split("; ")
+            for ent in type_results:
+                ner_results.append(ner_type + ',' + ent)
+    except:
+        return []
     return ner_results
 
 
@@ -79,16 +82,19 @@ def get_result_for_cmeie(response):
     predic_triples = list()
     predic_r_triples = list()
     type_relations = response.split(";\n")
-    for type_relation in type_relations:
-        re_type, type_results = type_relation.split(":") 
-        type_results = type_results.split(";")
-        for type_result in type_results:
-            type_result = type_result.strip('[').strip(']')
-            [ent1,ent2] = type_result.split(',')
-            predic_triple = "(" + ent1 + "," + ent2 + "," + re_type + ")"
-            predic_r_triple = "(" + ent2 + "," + ent1 + "," + re_type + ")"
-            predic_triples.append(predic_triple)
-            predic_r_triples.append(predic_r_triple)
+    try:
+        for type_relation in type_relations:
+            re_type, type_results = type_relation.split(":") 
+            type_results = type_results.split(";")
+            for type_result in type_results:
+                type_result = type_result.strip('[').strip(']')
+                [ent1,ent2] = type_result.split(',')
+                predic_triple = "(" + ent1 + "," + ent2 + "," + re_type + ")"
+                predic_r_triple = "(" + ent2 + "," + ent1 + "," + re_type + ")"
+                predic_triples.append(predic_triple)
+                predic_r_triples.append(predic_r_triple)
+    except:
+        return [],[]
     print(predic_triples)
     return predic_triples,predic_r_triples
 def eval(eval_path, despath, task = None):

@@ -11,9 +11,11 @@ MASTER_PORT=6002
 MODEL="Qwen_model/Qwen/Qwen-7B" # Set the path if you do not want to load from huggingface directly
 # ATTENTION: specify the path to your training data, which should be a json file consisting of a list of conversations.
 # See the section for finetuning in README for more information.
-DATA="data/processed/stage1_train.json"
+DATA="data/processed/stage_2/stage2_train.json"
 NER_EVAL_DATA="data/processed/ner_eval.json"
 RE_EVAL_DATA="data/processed/re_eval.json"
+BIO_DIA_EVAL_DATA="data/processed/stage_2/cmedqa_dev.json"
+TOUYI_DIA_EVAL_DATA="data/processed/stage_2/touyi_dev.json"
 
 DISTRIBUTED_ARGS="
     --nproc_per_node $GPUS_PER_NODE \
@@ -25,6 +27,7 @@ DISTRIBUTED_ARGS="
 torchrun $DISTRIBUTED_ARGS finetune.py \
     --output_dir output_qwen \
     --model_name_or_path $MODEL \
+    --peft_path output_qwen_from8800/checkpoint-4400 \
     --data_path $DATA \
     --num_train_epochs 10 \
     --per_device_train_batch_size 3 \
@@ -32,8 +35,8 @@ torchrun $DISTRIBUTED_ARGS finetune.py \
     --gradient_accumulation_steps 2 \
     --logging_dir ./tb_logs \
     --logging_steps 10 \
-    --eval_data_name NER RE \
-    --eval_data_path $NER_EVAL_DATA $RE_EVAL_DATA \
+    --eval_data_name NER RE BIODIA TOUYIDIA\
+    --eval_data_path $NER_EVAL_DATA $RE_EVAL_DATA $BIO_DIA_EVAL_DATA $TOUYI_DIA_EVAL_DATA \
     --evaluation_strategy steps \
     --eval_steps 550 \
     --learning_rate 2e-4 \

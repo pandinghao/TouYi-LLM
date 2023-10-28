@@ -13,13 +13,14 @@ from torch.utils.data import Dataset
 from deepspeed import zero
 from deepspeed.runtime.zero.partition_parameters import ZeroParamStatus
 import transformers
-from transformers import Trainer, GPTQConfig, deepspeed, AutoModelForCausalLM, BitsAndBytesConfig, EvalPrediction
+from transformers import Trainer, GPTQConfig, deepspeed, AutoModelForCausalLM, BitsAndBytesConfig
 from transformers.trainer_pt_utils import LabelSmoother
 from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training,PeftModel
 from accelerate.utils import DistributedType
 from utils import find_all_linear_names
 from torch.utils.tensorboard import SummaryWriter   # 通过注释这个来控制是否使用tensorboard
-
+from my_trainer import TouYiTrainer, TouYiEvalPrediction
+from eval.eval import eval_for_evalset
 
 IGNORE_TOKEN_ID = LabelSmoother.ignore_index
 
@@ -36,14 +37,20 @@ class DataArguments:
     data_path: str = field(
         default="data/processed/train_cmedqa2_debug.json", metadata={"help": "Path to the training data."}
     )
-    eval_data_path: str = field(
-        default="data/processed/valid_cmedqa2_debug.json", metadata={"help": "Path to the evaluation data."}
+    # eval_data_path: str = field(
+    #     default="data/processed/valid_cmedqa2_debug.json", metadata={"help": "Path to the evaluation data."}
+    # )
+    eval_data_name: List[str] = field(
+        metadata={"help": "Path to the evaluation data."}, default_factory=list
+    )
+    eval_data_path: List[str] = field(
+        metadata={"help": "Path to the evaluation data."}, default_factory=list
     )
     lazy_preprocess: bool = False
 
 
 @dataclass
-class TrainingArguments(transformers.TrainingArguments):
+class TrainingArguments(transformers.Seq2SeqTrainingArguments):
     cache_dir: Optional[str] = field(default=None)
     optim: str = field(default="adamw_torch")
     model_max_length: int = field(
@@ -55,6 +62,7 @@ class TrainingArguments(transformers.TrainingArguments):
     use_lora: bool = False
     train_from_former_checkpoint: str = None
     peft_path: str = None
+    max_generated_tokens: int = field(default=500, metadata={"help": "max length of the generated tokens"})
 
 
 @dataclass
@@ -238,10 +246,11 @@ class SupervisedDataset(Dataset):
 class LazySupervisedDataset(Dataset):
     """Dataset for supervised fine-tuning."""
 
-    def __init__(self, raw_data, tokenizer: transformers.PreTrainedTokenizer, max_len: int):
+    def __init__(self, raw_data, tokenizer: transformers.PreTrainedTokenizer, max_len: int, test_flag=False):
         super(LazySupervisedDataset, self).__init__()
         self.tokenizer = tokenizer
         self.max_len = max_len
+        self.test_flag=test_flag
 
         rank0_print("Formatting inputs...Skip in lazy mode")
         self.tokenizer = tokenizer
@@ -255,7 +264,7 @@ class LazySupervisedDataset(Dataset):
         if i in self.cached_data_dict:
             return self.cached_data_dict[i]
 
-        ret = preprocess([self.raw_data[i]["conversations"]], self.tokenizer, self.max_len)
+        ret = preprocess([self.raw_data[i]["conversations"]], self.tokenizer, self.max_len, test_flag=self.test_flag)
         ret = dict(
             input_ids=ret["input_ids"][0],
             labels=ret["labels"][0],
@@ -278,27 +287,38 @@ def make_supervised_data_module(
     train_dataset = dataset_cls(train_json, tokenizer=tokenizer, max_len=max_len)
 
     if data_args.eval_data_path:
-        eval_json = json.load(open(data_args.eval_data_path, "r"))
-        eval_dataset = dataset_cls(eval_json, tokenizer=tokenizer, max_len=max_len)
+        eval_dataset = dict()
+        for eval_data_name, eval_data_path in list(zip(data_args.eval_data_name, data_args.eval_data_path)):
+            print(eval_data_name, eval_data_path)
+            eval_json = json.load(open(eval_data_path, "r"))
+            dataset = dataset_cls(eval_json, tokenizer=tokenizer, max_len=max_len,test_flag=True)
+            eval_dataset[eval_data_name]=dataset
     else:
         eval_dataset = None
 
     return dict(train_dataset=train_dataset, eval_dataset=eval_dataset)
 #todo:还需要改dataset
-def compute_metrics(p: EvalPrediction):
-    
-    '''
-        这里写evaluation的代码
-        Args:
-            p由三部分组成 predictions, label_ids和input_ids，evaluation时一般用前两个
-            具体参看EvalPrediction类
-        Return:
-            评价的指标，字典形式 {"F1": f, ...}
-    '''
-    p.predictions
-    p.label_ids
-    return  {"F1"}
-    pass
+def compute_metrics(p: TouYiEvalPrediction):    
+    ret = dict()    # 必须返回字典
+    preds, labels, input_ids, metric_key_prefix, tokenizer = p
+    if metric_key_prefix.endswith("NER"):
+        task = 'cmeee'
+        precision, recall, f1 = eval_for_evalset(preds=preds,labels=labels,task=task)
+        ret["P"] = precision
+        ret["R"] = recall
+        ret["F"] = f1
+        # 计算指标P R F 存入字典，字典的key就写P R F就行，数据集类型的前缀(NER, RE)trainer中自己会加
+    elif metric_key_prefix.endswith("RE"):
+        task = 'cmeie'
+        precision, recall, f1 = eval_for_evalset(preds=preds,labels=labels,task=task)
+        ret["P"] = precision
+        ret["R"] = recall
+        ret["F"] = f1
+    # 计算指标P R F 存入字典，字典的key就写P R F就行，数据集类型的前缀(NER, RE)trainer中自己会加
+    else:
+        pass    # 不需要计算指标的不进行处理，直接返回空字典
+
+    return ret
 
 
 def train():
@@ -314,6 +334,9 @@ def train():
         lora_args,
     ) = parser.parse_args_into_dataclasses()
     training_args.logging_dir = "{}/{}".format(training_args.logging_dir, datetime.now().strftime('%b%d_%H-%M-%S'))
+    generation_config = transformers.GenerationConfig.from_pretrained(model_args.model_name_or_path)
+    generation_config.max_new_tokens = training_args.max_generated_tokens
+    training_args.generation_config = generation_config
     #print(training_args)
     # This serves for single-gpu qlora.
     if getattr(training_args, 'deepspeed', None) and int(os.environ.get("WORLD_SIZE", 1))==1:
@@ -417,12 +440,12 @@ def train():
     )
 
     # Start trainner
-    #trainer = Trainer(
-    #    model=model, tokenizer=tokenizer, args=training_args, compute_metrics=compute_metrics, **data_module
-    #)
-    trainer = Trainer(
-        model=model, tokenizer=tokenizer, args=training_args, **data_module
+    trainer = TouYiTrainer(
+       model=model, tokenizer=tokenizer, args=training_args, compute_metrics=compute_metrics, **data_module
     )
+    # trainer = Trainer(
+    #     model=model, tokenizer=tokenizer, args=training_args, **data_module
+    # )
 
     trainer.train()
     trainer.save_state()

@@ -28,7 +28,7 @@ torchrun $DISTRIBUTED_ARGS finetune.py \
     --data_path $DATA \
     --num_train_epochs 10 \
     --per_device_train_batch_size 3 \
-    --per_device_eval_batch_size 3 \
+    --per_device_eval_batch_size 1 \
     --gradient_accumulation_steps 2 \
     --logging_dir ./tb_logs \
     --logging_steps 10 \
@@ -59,4 +59,6 @@ torchrun $DISTRIBUTED_ARGS finetune.py \
     --max_grad_norm 0.3 \
     --remove_unused_columns false \
     --predict_with_generate \
-    --max_generated_tokens 500 
+    --max_generated_tokens 500 \
+    --generation_top_p 0.9 \
+    --generation_temperature 0.2

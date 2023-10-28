@@ -62,6 +62,8 @@ class TrainingArguments(transformers.Seq2SeqTrainingArguments):
     train_from_former_checkpoint: str = None
     peft_path: str = None
     max_generated_tokens: int = field(default=500, metadata={"help": "max length of the generated tokens"})
+    generation_top_p: float = field(default=0.9, metadata={"help": "top_p for generation"})
+    generation_temperature: float = field(default=0.2, metadata={"help": "temperature for generation"})
 
 
 @dataclass
@@ -333,6 +335,8 @@ def train():
     training_args.logging_dir = "{}/{}".format(training_args.logging_dir, datetime.now().strftime('%b%d_%H-%M-%S'))
     generation_config = transformers.GenerationConfig.from_pretrained(model_args.model_name_or_path)
     generation_config.max_new_tokens = training_args.max_generated_tokens
+    generation_config.top_p = training_args.generation_top_p
+    generation_config.temperature = training_args.generation_temperature
     training_args.generation_config = generation_config
     #print(training_args)
     # This serves for single-gpu qlora.

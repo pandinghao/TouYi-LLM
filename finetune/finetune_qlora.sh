@@ -8,10 +8,12 @@ NODE_RANK=0
 MASTER_ADDR=localhost
 MASTER_PORT=6002
 
-MODEL="Qwen_model/Qwen/Qwen-7B" # Set the path if you do not want to load from huggingface directly
+MODEL="/root/autodl-tmp/Qwen_model/Qwen/Qwen-7B" # Set the path if you do not want to load from huggingface directly
 # ATTENTION: specify the path to your training data, which should be a json file consisting of a list of conversations.
 # See the section for finetuning in README for more information.
-DATA="data/processed/stage1_train.json"
+DATA="/root/autodl-tmp/data/processed/stage1_train.json"
+NER_EVAL_DATA="/root/autodl-tmp/data/processed/thx_ner_eval.json"
+RE_EVAL_DATA="/root/autodl-tmp/data/processed/thx_re_eval.json"
 
 DISTRIBUTED_ARGS="
     --nproc_per_node $GPUS_PER_NODE \
@@ -22,7 +24,7 @@ DISTRIBUTED_ARGS="
 "
 torchrun $DISTRIBUTED_ARGS finetune.py \
     --output_dir output_qwen \
-    --model_name_or_path Qwen_model/Qwen/Qwen-7B \
+    --model_name_or_path $MODEL \
     --data_path $DATA \
     --num_train_epochs 10 \
     --per_device_train_batch_size 3 \
@@ -30,7 +32,8 @@ torchrun $DISTRIBUTED_ARGS finetune.py \
     --gradient_accumulation_steps 2 \
     --logging_dir ./tb_logs \
     --logging_steps 10 \
-    --eval_data_path data/processed/stage1_eval.json \
+    --eval_data_name NER RE \
+    --eval_data_path $NER_EVAL_DATA $RE_EVAL_DATA \
     --evaluation_strategy steps \
     --eval_steps 550 \
     --learning_rate 2e-4 \
@@ -54,4 +57,6 @@ torchrun $DISTRIBUTED_ARGS finetune.py \
     --save_strategy steps \
     --weight_decay 0.05 \
     --max_grad_norm 0.3 \
-    --remove_unused_columns false
+    --remove_unused_columns false \
+    --predict_with_generate \
+    --max_generated_tokens 500 

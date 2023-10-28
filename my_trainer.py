@@ -548,10 +548,10 @@ class TouYiTrainer(Trainer):
         # Retrieves GenerationConfig from model.generation_config
         gen_config = self.model.generation_config
         # in case the batch is shorter than max length, the output should be padded
-        if generated_tokens.shape[-1] < gen_config.max_length:
-            generated_tokens = self._pad_tensors_to_max_len(generated_tokens, gen_config.max_length)
-        elif gen_config.max_new_tokens is not None and generated_tokens.shape[-1] < gen_config.max_new_tokens + 1:
-            generated_tokens = self._pad_tensors_to_max_len(generated_tokens, gen_config.max_new_tokens + 1)    # 这里为什么要+1
+        # if generated_tokens.shape[-1] < gen_config.max_length:
+        #     generated_tokens = self._pad_tensors_to_max_len(generated_tokens, gen_config.max_length)
+        if gen_config.max_new_tokens is not None and generated_tokens.shape[-1] < gen_config.max_new_tokens + inputs["input_ids"].shape[-1]:
+            generated_tokens = self._pad_tensors_to_max_len(generated_tokens, gen_config.max_new_tokens + inputs["input_ids"].shape[-1])
 
         with torch.no_grad():
             if has_labels:

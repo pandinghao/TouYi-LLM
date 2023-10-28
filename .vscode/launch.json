@@ -16,7 +16,8 @@
             "args": [
                 "--model_name_or_path", "/root/autodl-tmp/Qwen_model/Qwen/Qwen-7B",
                 "--data_path","/root/autodl-tmp/data/processed/stage1_train.json",
-                "--eval_data_path", "/root/autodl-tmp/data/processed/stage1_eval.json",
+                "--eval_data_name", "NER", "RE",
+                "--eval_data_path", "/root/autodl-tmp/data/processed/thx_ner_eval.json", "/root/autodl-tmp/data/processed/thx_re_eval.json",
                 "--fp16" , "True",
                 "--output_dir" ,"output_qwen",
                 "--num_train_epochs"  ,"5",
@@ -40,6 +41,7 @@
                 "--use_lora",
                 "--q_lora", 
                 "--predict_with_generate",
+                "--max_generated_tokens", "500",
                 "--gradient_checkpointing", 
                 // "--deepspeed" ,"finetune/ds_config_zero2.json"
             ]

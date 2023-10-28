@@ -20,7 +20,7 @@ from accelerate.utils import DistributedType
 from utils import find_all_linear_names
 from torch.utils.tensorboard import SummaryWriter   # 通过注释这个来控制是否使用tensorboard
 from my_trainer import TouYiTrainer, TouYiEvalPrediction
-from eval.eval import eval_for_evalset
+from eval_code import eval_for_evalset
 
 IGNORE_TOKEN_ID = LabelSmoother.ignore_index
 

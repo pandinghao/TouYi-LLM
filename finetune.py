@@ -188,11 +188,13 @@ def preprocess(
             assert len(input_id) == len(target)
         if test_flag :
             input_id += tokenizer("助手").input_ids + nl_tokens
+            att_mask = [1] * len(input_id)
             #target += [IGNORE_TOKEN_ID] * (len(tokenizer("助手").input_ids) + 1)
             #左padding
             #if len(input_id) < max_len:
                 #input_id = [tokenizer.pad_token_id] * (max_len - len(input_id)) + input_id
                 #target = [IGNORE_TOKEN_ID] * (max_len - len(target)) + target
+        
         else:
             if len(input_id) < max_len:
                 input_id += [tokenizer.pad_token_id] * (max_len - len(input_id))

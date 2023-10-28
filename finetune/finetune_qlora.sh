@@ -8,12 +8,12 @@ NODE_RANK=0
 MASTER_ADDR=localhost
 MASTER_PORT=6002
 
-MODEL="/root/autodl-tmp/Qwen_model/Qwen/Qwen-7B" # Set the path if you do not want to load from huggingface directly
+MODEL="Qwen_model/Qwen/Qwen-7B" # Set the path if you do not want to load from huggingface directly
 # ATTENTION: specify the path to your training data, which should be a json file consisting of a list of conversations.
 # See the section for finetuning in README for more information.
-DATA="/root/autodl-tmp/data/processed/stage1_train.json"
-NER_EVAL_DATA="/root/autodl-tmp/data/processed/thx_ner_eval.json"
-RE_EVAL_DATA="/root/autodl-tmp/data/processed/thx_re_eval.json"
+DATA="data/processed/stage1_train.json"
+NER_EVAL_DATA="data/processed/ner_eval.json"
+RE_EVAL_DATA="data/processed/re_eval.json"
 
 DISTRIBUTED_ARGS="
     --nproc_per_node $GPUS_PER_NODE \

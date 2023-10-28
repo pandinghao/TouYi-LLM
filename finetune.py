@@ -20,6 +20,7 @@ from accelerate.utils import DistributedType
 from utils import find_all_linear_names
 from torch.utils.tensorboard import SummaryWriter   # 通过注释这个来控制是否使用tensorboard
 from my_trainer import TouYiTrainer, TouYiEvalPrediction
+from eval.eval import eval_for_evalset
 
 IGNORE_TOKEN_ID = LabelSmoother.ignore_index
 
@@ -297,14 +298,20 @@ def make_supervised_data_module(
 def compute_metrics(p: TouYiEvalPrediction):    
     ret = dict()    # 必须返回字典
     preds, labels, input_ids, metric_key_prefix, tokenizer = p
-    tokenize.decode
     if metric_key_prefix.endswith("NER"):
         task = 'cmeee'
-        pass    # 计算指标P R F 存入字典，字典的key就写P R F就行，数据集类型的前缀(NER, RE)trainer中自己会加
+        precision, recall, f1 = eval_for_evalset(preds=preds,labels=labels,task=task)
+        ret["P"] = precision
+        ret["R"] = recall
+        ret["F"] = f1
+        # 计算指标P R F 存入字典，字典的key就写P R F就行，数据集类型的前缀(NER, RE)trainer中自己会加
     elif metric_key_prefix.endswith("RE"):
         task = 'cmeie'
-
-        pass    # 计算指标P R F 存入字典，字典的key就写P R F就行，数据集类型的前缀(NER, RE)trainer中自己会加
+        precision, recall, f1 = eval_for_evalset(preds=preds,labels=labels,task=task)
+        ret["P"] = precision
+        ret["R"] = recall
+        ret["F"] = f1
+    # 计算指标P R F 存入字典，字典的key就写P R F就行，数据集类型的前缀(NER, RE)trainer中自己会加
     else:
         pass    # 不需要计算指标的不进行处理，直接返回空字典
 

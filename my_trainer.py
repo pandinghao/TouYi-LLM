@@ -559,12 +559,14 @@ class TouYiTrainer(Trainer):
         input_shape = inputs["input_ids"].shape[-1]
         generated_tokens = self._pad_tensors_to_max_len(generated_tokens, input_shape, gen_config.max_new_tokens)
 
+        new_inputs = self.make_new_inputs(inputs)
+
         with torch.no_grad():
             if has_labels:
                 with self.compute_loss_context_manager():
-                    outputs = model(**inputs)
+                    outputs = model(**new_inputs)
                 if self.label_smoother is not None:
-                    loss = self.label_smoother(outputs, inputs["labels"]).mean().detach()
+                    loss = self.label_smoother(outputs, new_inputs["labels"]).mean().detach()
                 else:
                     loss = (outputs["loss"] if isinstance(outputs, dict) else outputs[0]).mean().detach()
             else:
@@ -583,6 +585,27 @@ class TouYiTrainer(Trainer):
             labels = None
 
         return loss, generated_tokens, labels
+
+
+    def make_new_inputs(self, origin_inputs):
+        input_ids = origin_inputs["input_ids"]
+        labels = origin_inputs["labels"]
+        bz = input_ids.shape[0]
+        dtype = input_ids.dtype
+        device = input_ids.device
+        new_input_ids_shape = (bz, input_ids.shape[-1] + labels.shape[-1])
+        new_input_ids = torch.ones(new_input_ids_shape, dtype=dtype, device=device)
+        new_labels = -100 * torch.ones(new_input_ids_shape, dtype=dtype, device=device)
+        new_att_mask = torch.ones(new_input_ids_shape, dtype=dtype, device=device)
+        new_input_ids[:, :input_ids.shape[-1]] = input_ids
+        new_input_ids[:, -labels.shape[-1]:] = labels
+        new_labels[:, -labels.shape[-1]:] = labels
+        return {
+            "input_ids": new_input_ids,
+            "labels": new_labels,
+            "attention_mask": new_att_mask
+        }
+
 
     def _pad_tensors_to_max_len(self, tensor, input_shape, max_length):
         if self.tokenizer is not None and hasattr(self.tokenizer, "pad_token_id"):

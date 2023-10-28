@@ -299,21 +299,19 @@ def make_supervised_data_module(
 #todo:还需要改dataset
 def compute_metrics(p: TouYiEvalPrediction):    
     ret = dict()    # 必须返回字典
-    preds, labels, input_ids, metric_key_prefix, tokenizer = p
+    preds, labels, metric_key_prefix, tokenizer = p
     if metric_key_prefix.endswith("NER"):
         task = 'cmeee'
         precision, recall, f1 = eval_for_evalset(preds=preds,labels=labels,task=task,tokenizer=tokenizer)
         ret["P"] = precision
         ret["R"] = recall
-        ret["F"] = f1
-        # 计算指标P R F 存入字典，字典的key就写P R F就行，数据集类型的前缀(NER, RE)trainer中自己会加
+        ret["F1"] = f1
     elif metric_key_prefix.endswith("RE"):
         task = 'cmeie'
         precision, recall, f1 = eval_for_evalset(preds=preds,labels=labels,task=task,tokenizer=tokenizer)
         ret["P"] = precision
         ret["R"] = recall
-        ret["F"] = f1
-    # 计算指标P R F 存入字典，字典的key就写P R F就行，数据集类型的前缀(NER, RE)trainer中自己会加
+        ret["F1"] = f1
     else:
         pass    # 不需要计算指标的不进行处理，直接返回空字典
 
@@ -465,10 +463,6 @@ def get_result_for_cmeee(response):
         return []
     return ner_results
 
-
-
-
-
 def get_result_for_cmeie(response):
     if response == '':
         return [],[]
@@ -532,6 +526,8 @@ def eval_for_evalset(preds,labels,tokenizer,task = None):
                 all_pre_cnt += len(predic_triples)
                 gold_cnt += len(label_triples)
     if all_pre_cnt == 0 or correct_cnt == 0 :
+        precision = 0
+        recall = 0
         f1 = 0
     else:
         precision = correct_cnt/all_pre_cnt

@@ -41,30 +41,35 @@ class TouYiEvalPrediction(EvalPrediction):
         self,
         predictions: Union[np.ndarray, Tuple[np.ndarray]],
         label_ids: Union[np.ndarray, Tuple[np.ndarray]],
-        inputs: Union[np.ndarray, Tuple[np.ndarray]],
         metric_key_prefix: str,
-        tokenizer: "PreTrainedTokenizerBase"
+        tokenizer: "PreTrainedTokenizerBase",
+        inputs: Optional[Union[np.ndarray, Tuple[np.ndarray]]] = None,
     ):
         super().__init__(predictions, label_ids, inputs)
         self.metric_key_prefix = metric_key_prefix
         self.tokenizer = tokenizer
 
     def __iter__(self):
-        return iter((self.predictions, self.label_ids, self.inputs, self.metric_key_prefix, self.tokenizer))
+        if self.inputs is not None:
+            return iter((self.predictions, self.label_ids, self.metric_key_prefix, self.tokenizer, self.inputs))
+        else:
+            return iter((self.predictions, self.label_ids, self.metric_key_prefix, self.tokenizer))
 
     def __getitem__(self, idx):
         if idx < 0 or idx > 4:
+            raise IndexError("tuple index out of range")
+        if idx == 4 and self.inputs is None:
             raise IndexError("tuple index out of range")
         if idx == 0:
             return self.predictions
         elif idx == 1:
             return self.label_ids
         elif idx == 2:
-            return self.inputs
-        elif idx == 3:
             return self.metric_key_prefix
-        elif idx == 4:
+        elif idx == 3:
             return self.tokenizer
+        elif idx == 4:
+            return self.inputs
 
 class TouYiTrainer(Trainer):
     def __init__(
@@ -385,13 +390,13 @@ class TouYiTrainer(Trainer):
 
         # Metrics!
         if self.compute_metrics is not None and all_preds is not None and all_labels is not None:
-            if metric_key_prefix != "eval":
+            if args.include_inputs_for_metrics:
                 metrics = self.compute_metrics(
                     TouYiEvalPrediction(predictions=all_preds, label_ids=all_labels, inputs=all_inputs, metric_key_prefix=metric_key_prefix, tokenizer=self.tokenizer)
                 )
             else:
                 metrics = self.compute_metrics(
-                    EvalPrediction(predictions=all_preds, label_ids=all_labels, inputs=all_inputs)
+                    TouYiEvalPrediction(predictions=all_preds, label_ids=all_labels, metric_key_prefix=metric_key_prefix, tokenizer=self.tokenizer)
                 )
         else:
             metrics = {}
@@ -550,8 +555,9 @@ class TouYiTrainer(Trainer):
         # in case the batch is shorter than max length, the output should be padded
         # if generated_tokens.shape[-1] < gen_config.max_length:
         #     generated_tokens = self._pad_tensors_to_max_len(generated_tokens, gen_config.max_length)
-        if gen_config.max_new_tokens is not None and generated_tokens.shape[-1] < gen_config.max_new_tokens + inputs["input_ids"].shape[-1]:
-            generated_tokens = self._pad_tensors_to_max_len(generated_tokens, gen_config.max_new_tokens + inputs["input_ids"].shape[-1])
+        # if gen_config.max_new_tokens is not None and generated_tokens.shape[-1] < gen_config.max_new_tokens + inputs["input_ids"].shape[-1]:
+        input_shape = inputs["input_ids"].shape[-1]
+        generated_tokens = self._pad_tensors_to_max_len(generated_tokens, input_shape, gen_config.max_new_tokens)
 
         with torch.no_grad():
             if has_labels:
@@ -572,13 +578,13 @@ class TouYiTrainer(Trainer):
             # if labels.shape[-1] < gen_config.max_length:
             #     labels = self._pad_tensors_to_max_len(labels, gen_config.max_length)
             # elif gen_config.max_new_tokens is not None and labels.shape[-1] < gen_config.max_new_tokens + 1:
-            #     labels = self._pad_tensors_to_max_len(labels, gen_config.max_new_tokens + 1)
+            labels = self._pad_tensors_to_max_len(labels, 0, gen_config.max_new_tokens)
         else:
             labels = None
 
         return loss, generated_tokens, labels
 
-    def _pad_tensors_to_max_len(self, tensor, max_length):
+    def _pad_tensors_to_max_len(self, tensor, input_shape, max_length):
         if self.tokenizer is not None and hasattr(self.tokenizer, "pad_token_id"):
             # If PAD token is not defined at least EOS token has to be defined
             pad_token_id = (
@@ -593,5 +599,5 @@ class TouYiTrainer(Trainer):
         padded_tensor = pad_token_id * torch.ones(
             (tensor.shape[0], max_length), dtype=tensor.dtype, device=tensor.device
         )
-        padded_tensor[:, : tensor.shape[-1]] = tensor
+        padded_tensor[:, : (tensor.shape[-1]-input_shape)] = tensor[:, input_shape:]
         return padded_tensor

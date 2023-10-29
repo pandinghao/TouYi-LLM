@@ -8,15 +8,15 @@ NODE_RANK=0
 MASTER_ADDR=localhost
 MASTER_PORT=6002
 #nohup sh finetune/finetune_qlora_from8800.sh > logs/train_stage1_1026_startfrom8800.log 2>&1 &
-MODEL="/root/autodl-tmp/Qwen_model/Qwen/Qwen-7B" # Set the path if you do not want to load from huggingface directly
+MODEL="Qwen_model/Qwen/Qwen-7B" # Set the path if you do not want to load from huggingface directly
 # ATTENTION: specify the path to your training data, which should be a json file consisting of a list of conversations.
 # See the section for finetuning in README for more information.
-DATA="/root/autodl-tmp/data/processed/stage_2/stage2_train.json"
-#DATA="/root/autodl-tmp/data/processed/stage_2/cmeie_dev.json"
-NER_EVAL_DATA="/root/autodl-tmp/data/processed/stage_2/cmeee_dev.json"
-RE_EVAL_DATA="/root/autodl-tmp/data/processed/stage_2/cmeie_dev.json"
-BIO_DIA_EVAL_DATA="/root/autodl-tmp/data/processed/stage_2/cmedqa_dev.json"
-TOUYI_DIA_EVAL_DATA="/root/autodl-tmp/data/processed/stage_2/touyi_dev.json"
+#DATA="data/processed/stage_2/stage2_train.json"
+DATA="data/processed/stage_2/cmeie_dev.json"
+NER_EVAL_DATA="data/processed/stage_2/cmeee_dev.json"
+RE_EVAL_DATA="data/processed/stage_2/cmeie_dev.json"
+BIO_DIA_EVAL_DATA="data/processed/stage_2/cmedqa_dev.json"
+TOUYI_DIA_EVAL_DATA="data/processed/stage_2/touyi_dev.json"
 
 DISTRIBUTED_ARGS="
     --nproc_per_node $GPUS_PER_NODE \
@@ -26,11 +26,11 @@ DISTRIBUTED_ARGS="
     --master_port $MASTER_PORT
 "
 torchrun $DISTRIBUTED_ARGS finetune.py \
-    --output_dir /root/autodl-tmp/output_qwen_stage2 \
+    --output_dir output_qwen_stage2 \
     --model_name_or_path $MODEL \
     --peft_path output_qwen_from8800/checkpoint-4400 \
     --data_path $DATA \
-    --num_train_epochs 5 \
+    --num_train_epochs  1\
     --per_device_train_batch_size 3 \
     --per_device_eval_batch_size 1 \
     --gradient_accumulation_steps 2 \
@@ -39,7 +39,7 @@ torchrun $DISTRIBUTED_ARGS finetune.py \
     --eval_data_name NER RE BIODIA \
     --eval_data_path $NER_EVAL_DATA $RE_EVAL_DATA $BIO_DIA_EVAL_DATA \
     --evaluation_strategy steps \
-    --eval_steps 1154 \
+    --eval_steps 1 \
     --learning_rate 2e-4 \
     --model_max_length 1024 \
     --use_lora \

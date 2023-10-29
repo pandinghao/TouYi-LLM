@@ -9,6 +9,7 @@ from datetime import datetime
 import os
 from typing import Dict, Optional, List
 import torch
+from tqdm import tqdm
 from torch.utils.data import Dataset
 from deepspeed import zero
 from deepspeed.runtime.zero.partition_parameters import ZeroParamStatus
@@ -156,7 +157,7 @@ def preprocess(
 
     # Apply prompt templates
     input_ids, targets,attention_mask = [], [],[]
-    for i, source in enumerate(sources):
+    for i, source in enumerate(tqdm(sources)):
         '''
         if roles[source[0]["from"]] != roles["user"]:
             source = source[1:]
@@ -486,7 +487,7 @@ def get_result_for_cmeie(response):
                 predic_r_triples.append(predic_r_triple)
     except:
         return [],[]
-    print(predic_triples)
+    #print(predic_triples)
     return predic_triples,predic_r_triples
 def eval_for_evalset(preds,labels,tokenizer,task = None):
     gold_cnt = 0
@@ -495,8 +496,8 @@ def eval_for_evalset(preds,labels,tokenizer,task = None):
     responses = tokenizer.batch_decode(preds,skip_special_tokens = True)
     label_responses = tokenizer.batch_decode(labels,skip_special_tokens=True)
     for i,(response,label_response) in enumerate(zip(responses,label_responses)):
-        print(response)
-        print(label_response)
+        #print(response)
+        #print(label_response)
         if task == "cmeee":
             for i,(response,label_response) in enumerate(zip(responses,label_responses)):
                 #print(response)

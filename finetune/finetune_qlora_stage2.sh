@@ -7,15 +7,16 @@ NNODES=1
 NODE_RANK=0
 MASTER_ADDR=localhost
 MASTER_PORT=6002
-
-MODEL="Qwen_model/Qwen/Qwen-7B" # Set the path if you do not want to load from huggingface directly
+#nohup sh finetune/finetune_qlora_from8800.sh > logs/train_stage1_1026_startfrom8800.log 2>&1 &
+MODEL="/root/autodl-tmp/Qwen_model/Qwen/Qwen-7B" # Set the path if you do not want to load from huggingface directly
 # ATTENTION: specify the path to your training data, which should be a json file consisting of a list of conversations.
 # See the section for finetuning in README for more information.
-DATA="data/processed/stage_2/stage2_train.json"
-NER_EVAL_DATA="data/processed/ner_eval.json"
-RE_EVAL_DATA="data/processed/re_eval.json"
-BIO_DIA_EVAL_DATA="data/processed/stage_2/cmedqa_dev.json"
-TOUYI_DIA_EVAL_DATA="data/processed/stage_2/touyi_dev.json"
+DATA="/root/autodl-tmp/data/processed/stage_2/stage2_train.json"
+#DATA="/root/autodl-tmp/data/processed/stage_2/cmeie_dev.json"
+NER_EVAL_DATA="/root/autodl-tmp/data/processed/stage_2/cmeee_dev.json"
+RE_EVAL_DATA="/root/autodl-tmp/data/processed/stage_2/cmeie_dev.json"
+BIO_DIA_EVAL_DATA="/root/autodl-tmp/data/processed/stage_2/cmedqa_dev.json"
+TOUYI_DIA_EVAL_DATA="/root/autodl-tmp/data/processed/stage_2/touyi_dev.json"
 
 DISTRIBUTED_ARGS="
     --nproc_per_node $GPUS_PER_NODE \
@@ -25,26 +26,26 @@ DISTRIBUTED_ARGS="
     --master_port $MASTER_PORT
 "
 torchrun $DISTRIBUTED_ARGS finetune.py \
-    --output_dir output_qwen \
+    --output_dir /root/autodl-tmp/output_qwen_stage2 \
     --model_name_or_path $MODEL \
     --peft_path output_qwen_from8800/checkpoint-4400 \
     --data_path $DATA \
-    --num_train_epochs 10 \
+    --num_train_epochs 5 \
     --per_device_train_batch_size 3 \
     --per_device_eval_batch_size 1 \
     --gradient_accumulation_steps 2 \
     --logging_dir ./tb_logs \
     --logging_steps 10 \
-    --eval_data_name NER RE BIODIA TOUYIDIA\
-    --eval_data_path $NER_EVAL_DATA $RE_EVAL_DATA $BIO_DIA_EVAL_DATA $TOUYI_DIA_EVAL_DATA \
+    --eval_data_name NER RE BIODIA \
+    --eval_data_path $NER_EVAL_DATA $RE_EVAL_DATA $BIO_DIA_EVAL_DATA \
     --evaluation_strategy steps \
-    --eval_steps 550 \
+    --eval_steps 1154 \
     --learning_rate 2e-4 \
     --model_max_length 1024 \
     --use_lora \
     --q_lora \
-    --save_steps 1100 \
-    --save_total_limit 20 \
+    --save_steps 1154 \
+    --save_total_limit 50 \
     --lr_scheduler_type constant_with_warmup \
     --warmup_ratio 0.1 \
     --lora_r 64 \

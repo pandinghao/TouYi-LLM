@@ -18,12 +18,12 @@ def merge_data(**kwargs):
     return all_data
 final_dev = list()
 cmeee = merge_data(outputpath = "data/processed/stage_2/cmeee.json", ner_eval_path = "data/processed/cmeee_v2-eval_set.json",ner_train_path = "data/processed/cmeee_v2-train_set.json")
-random.shuffle(cmeee)
+#random.shuffle(cmeee)
 cmeee_train = cmeee[200:]
 cmeee_dev = cmeee[:200]
 final_dev += cmeee_dev
 cmeie = merge_data(outputpath = "data/processed/stage_2/cmeie.json", re_eval_path = "data/processed/cmeie_eval.json",re_train_path = "data/processed/cmeie_train.json")
-random.shuffle(cmeie)
+#random.shuffle(cmeie)
 cmeie_train = cmeie[200:]
 cmeie_dev = cmeie[:200]
 final_dev += cmeie_dev
@@ -69,7 +69,7 @@ with open("data/processed/stage_2/stage2_train.json","w") as train_stage2_file, 
             final_train += touyi_d_train[touyi_cnt:touyi_cnt + 23]
             touyi_cnt+= 23
         if cmedqa_cnt + 30 < len(cmedqa_train):
-            final_train +=  cmedqa_train[cmedqa_cnt:cmedqa_cnt]
+            final_train +=  cmedqa_train[cmedqa_cnt:cmedqa_cnt+ 30]
             cmedqa_cnt += 30
         else:
             final_train += cmedqa_train[cmedqa_cnt:]

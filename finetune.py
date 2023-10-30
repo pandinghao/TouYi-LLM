@@ -144,7 +144,10 @@ def preprocess(
     tokenizer: transformers.PreTrainedTokenizer,
     max_len: int,
     system_message: str = None,
-    test_flag: bool = False
+    test_flag: bool = False,
+    multiturn_flag : bool = False,
+    history_max_len : int = 1000
+
 ) -> Dict:
     roles = {"user": "用户", "assistant": "助手"}
 
@@ -210,9 +213,12 @@ def preprocess(
                 input_id += [tokenizer.pad_token_id] * (max_len - len(input_id))
                 target += [IGNORE_TOKEN_ID] * (max_len - len(target))
                 att_mask += [0] * (max_len - len(att_mask))
-        input_ids.append(input_id[:max_len])
-        targets.append(target[:max_len])
-        attention_mask.append(att_mask[:max_len])
+        if multiturn_flag:
+            input_ids.append(input_id[-history_max_len:]) 
+        else:
+            input_ids.append(input_id[:max_len])
+            targets.append(target[:max_len])
+            attention_mask.append(att_mask[:max_len])
     return dict(
         input_ids=input_ids,
         labels=targets,

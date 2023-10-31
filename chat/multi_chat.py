@@ -2,12 +2,12 @@ from transformers import AutoTokenizer
 import torch
 
 import sys
-sys.path.append("../../")
+sys.path.append("./")
 from utils import ModelUtils
 from finetune import make_supervised_data_module,preprocess
 #放到模型加载的部分
-model_name_or_path = "Qwen_model/Qwen/Qwen-7B"      # Qwen模型权重路径
-adapter_name_or_path = "output_qwen_from8800/checkpoint-4400"     # sft后adapter权重路径
+model_name_or_path = "/root/autodl-tmp/Qwen_model/Qwen/Qwen-7B"      # Qwen模型权重路径
+adapter_name_or_path = "/root/autodl-tmp/output_qwen_stage2_1030/checkpoint-10386"     # sft后adapter权重路径
 load_in_4bit = False
 device = 'cuda:0'
 model = ModelUtils.load_model(

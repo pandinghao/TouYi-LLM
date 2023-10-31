@@ -11,7 +11,7 @@ from utils import ModelUtils
 
 # 使用合并后的模型进行推理
 model_name_or_path = "Qwen_model/Qwen/Qwen-7B"      # Qwen模型权重路径
-adapter_name_or_path = "output_qwen_from8800/checkpoint-4400"     # sft后adapter权重路径
+adapter_name_or_path = "/root/autodl-tmp/output_qwen_stage2_1030"      # sft后adapter权重路径
 
 # 使用base model和adapter进行推理，无需手动合并权重
 # model_name_or_path = 'baichuan-inc/Baichuan-7B'
@@ -65,8 +65,10 @@ def main():
                 top_p=top_p, temperature=temperature, repetition_penalty=repetition_penalty,
                 eos_token_id=tokenizer.eos_token_id
             )
-        print(model)
-        outputs = outputs.tolist()[0][len(input_ids[0]):]
+        #print(model)
+        print(outputs.tolist()[0])
+        #outputs = outputs.tolist()[0][len(input_ids[0]):]
+        outputs = outputs.tolist()[0]
         #print(len(outputs))
         response = tokenizer.decode(outputs,skip_special_tokens = False)
         #response = response.strip().replace(tokenizer.eos_token, "").strip()

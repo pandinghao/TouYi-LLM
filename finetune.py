@@ -199,7 +199,7 @@ def preprocess(
         att_mask = [1] * len(input_id)
         if not test_flag:
             assert len(input_id) == len(target)
-        if test_flag :
+        if test_flag or multiturn_flag :
             input_id += tokenizer("助手").input_ids + nl_tokens
             att_mask = [1] * len(input_id)
             #target += [IGNORE_TOKEN_ID] * (len(tokenizer("助手").input_ids) + 1)

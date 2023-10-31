@@ -47,7 +47,7 @@ def generate(
         conversation.append({"from": "user", "value": user_his})
         conversation.append({"from": "assistant", "value": assist_his})
     conversation.append({"from": "user", "value": message})
-    data_dict = preprocess([conversation], tokenizer, 1024, test_flag = True,multiturn_flag=True,history_max_len=history_max_len)    
+    data_dict = preprocess([conversation], tokenizer, 1024, test_flag = False,multiturn_flag=True,history_max_len=history_max_len)    
     input_ids = data_dict["input_ids"]
     input_ids = torch.tensor(input_ids, dtype=torch.int).to(device=device)
     with torch.no_grad():

@@ -323,4 +323,4 @@ with gr.Blocks(css = custom_css) as demo:
 
 
 
-demo.queue().launch(server_name="0.0.0.0", server_port=1222,share=True)
+demo.queue().launch(server_name="0.0.0.0", server_port=6006)

@@ -3,6 +3,7 @@ import torch
 from peft import PeftModel
 import bitsandbytes as bnb
 import os
+import json
 os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 class ModelUtils(object):
 
@@ -51,3 +52,12 @@ def find_all_linear_names(model):
     if 'lm_head' in lora_module_names:  # needed for 16-bit
         lora_module_names.remove('lm_head')
     return list(lora_module_names)
+
+def get_cmeie_map (cmeie_des_path):
+    with open(cmeie_des_path,"r") as input_file:
+        des_dict = json.load(input_file)
+        rel_to_id = dict()
+        rel_type = des_dict["rel_type"]
+        for re_type,_ in rel_type.items():
+            rel_to_id[re_type] = len(rel_to_id)
+    return rel_to_id

@@ -9,3 +9,4 @@ train_stage1_1024.log
 __pycache__
 logs
 output_qwen_from8800
+final_testset

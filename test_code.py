@@ -139,8 +139,8 @@ if __name__ == '__main__':
                             final_response += type_relation + '\n'
                         response = final_response
                         conver["assistant"] = response
-                json.dump(one_sample,test_output_file,ensure_ascii=False)
-                json.dump('\n',test_output_file,ensure_ascii=False)
+            json.dump(one_sample,test_output_file,ensure_ascii=False)
+            json.dump('\n',test_output_file,ensure_ascii=False)
     
 
 

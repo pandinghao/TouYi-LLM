@@ -26,7 +26,8 @@ top_p = 0.9
 temperature = 0.2
 repetition_penalty = 1.0
 device = 'cuda'
-test_paths = ["final_testset/NER_ex_free.jsonl","final_testset/RE_ex_free.jsonl"]
+test_paths = ["final_testset/QA_testset.jsonl","final_testset/RE_testset_free.jsonl","final_testset/NER_testset_free.jsonl"\
+              ,"final_testset/NER_testset_instruct.jsonl","final_testset/RE_testset_instruct.jsonl"]
 # 加载模型
 model = ModelUtils.load_model(
     model_name_or_path,
@@ -96,11 +97,11 @@ def generate(
         conversation.append({"from": "user", "value": user_his})
         conversation.append({"from": "assistant", "value": assist_his})
     conversation.append({"from": "user", "value": message})
-    print(conversation)
+    #print(conversation)
     data_dict = preprocess([conversation], tokenizer, max_len=1024, test_flag = False,multiturn_flag=True,history_max_len=history_max_len)    
-    print(data_dict)
+    #print(data_dict)
     input_ids = data_dict["input_ids"]
-    print(input_ids)
+    #print(input_ids)
     input_ids = torch.tensor(input_ids, dtype=torch.int).to(device=device)
     with torch.no_grad():
         outputs = model.generate(
@@ -109,7 +110,7 @@ def generate(
             eos_token_id=tokenizer.eos_token_id
         )
     outputs = outputs.tolist()[0][len(input_ids[0]):]
-    response = tokenizer.decode(outputs, skip_special_tokens = False)
+    response = tokenizer.decode(outputs, skip_special_tokens = True)
     history.append([message,response])
     return history,response
 if __name__ == '__main__':
@@ -119,32 +120,39 @@ if __name__ == '__main__':
         if not os.path.exists("test_output"):
             os.mkdir("test_output")
         with open(test_path,'r') as test_file, open(test_output_path,'w') as test_output_file:
-            for line in tqdm(test_file):
+            lines = test_file.readlines()
+            for line in tqdm(lines):
+                results = dict()
                 line = line.strip('\n')
                 one_sample = json.loads(line)
                 history = []
                 conversation = one_sample["conversation"]
+                conversation_id = one_sample["conversation_id"]
                 for conver in conversation:
                     human = conver["human"]
                     if test_name == "NER_testset_free" or test_name == "NER_ex_free":
                         new_human = "在下述文本中标记出医学实体：\n" + human
-                        print(new_human)
-                        history,response = generate(message=new_human, history=history,max_new_tokens=max_new_tokens,temperature=temperature,top_p=top_p)
+                        #print(new_human)
                     elif test_name == "RE_testset_free" or test_name == "RE_ex_free":
                         new_human = "实体关系抽取：\n" + human
-                        history,response = generate(message=new_human, history=history)
-                    else:
-                        history,response = generate(message=human, history=history)
+                    history,response = generate(message=new_human, history=history,max_new_tokens=max_new_tokens,temperature=temperature,top_p=top_p)
                     if test_name == "RE_ex_free" or test_name == "RE_testset_free" or test_name == "RE_testset_instruct":
-                        type_relations = type_relations.replace(":","：")
-                        type_relations = response.split(";\n")
-                        final_response = ''
-                        for type_relation in type_relations:
-                            final_response += type_relation + '\n'
-                        response = final_response
-                        conver["assistant"] = response
-                json.dump(one_sample,test_output_file,ensure_ascii=False)
-                json.dump('\n',test_output_file,ensure_ascii=False)
+                        response = response.replace(":","：")
+                        response = response.replace(",",", ")
+                        response = response.replace("];[","]; [")
+                        try:
+                            type_relations = response.split(";\n")
+                            final_response = ''
+                            for type_relation in type_relations:
+                                final_response += type_relation + '\n'
+                            response = final_response
+                        except:
+                            response = ""
+                    conver["assistant"] = response
+                    results["conversation_id"] = conversation_id
+                    results["answer"] = response
+                json.dump(results,test_output_file,ensure_ascii=False)
+                test_output_file.write('\n')
     
 
 

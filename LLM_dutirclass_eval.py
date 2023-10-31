@@ -118,13 +118,13 @@ if __name__ =="__main__":
     re_pre_file_name：re预测文件
     '''
     print("\n######## START NER TEST ########")
-    ner_test_data_dir = "test_ouput/NER_ex_free.jsonl"
-    ner_pre_file_name = 'results/NER_ex_pre.jsonl'
+    ner_test_data_dir = "final_testset/NER_ex_gold.jsonl"
+    ner_pre_file_name = 'test_output/NER_ex_free.jsonl'
     com_prf(ner_test_data_dir, ner_pre_file_name,task_name='NER')
     print("######## END NER TEST ########\n")
     #
     print("\n######## START RE TEST ########")
-    re_test_data_dir = "results/RE_ex_gold.jsonl"
-    re_pre_file_name = 'final_testset/RE_ex_gold.jsonl'
+    re_test_data_dir = "final_testset/RE_ex_gold.jsonl"
+    re_pre_file_name = 'test_output/RE_ex_free.jsonl'
     com_prf(re_test_data_dir, re_pre_file_name,task_name='RE')
     print("######## END RE TEST ########\n")

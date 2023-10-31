@@ -13,14 +13,10 @@ from transformers.trainer_pt_utils import LabelSmoother
 
 IGNORE_TOKEN_ID = LabelSmoother.ignore_index
 
- 
-# 使用合并后的模型进行推理
-model_name_or_path = "/root/autodl-tmp/Qwen_model/Qwen/Qwen-7B"      # Qwen模型权重路径
-adapter_name_or_path = "/root/autodl-tmp/output_qwen_stage2_1030/checkpoint-10386"    # sft后adapter权重路径
 
-# 使用base model和adapter进行推理，无需手动合并权重
-# model_name_or_path = 'baichuan-inc/Baichuan-7B'
-# adapter_name_or_path = 'YeungNLP/firefly-baichuan-7b-qlora-sft'
+# 使用合并后的模型进行推理
+model_name_or_path = "Qwen_model/Qwen/Qwen-7B"      # Qwen模型权重路径
+adapter_name_or_path = "/root/autodl-tmp/output_qwen_stage2_1030"    # sft后adapter权重路径
 
 # 是否使用4bit进行推理，能够节省很多显存，但效果可能会有一定的下降
 load_in_4bit = False
@@ -29,7 +25,6 @@ max_new_tokens = 500
 top_p = 0.9
 temperature = 0.2
 repetition_penalty = 1.0
-eval_batch = 1
 device = 'cuda'
 test_paths = ["final_testset/NER_ex_free.jsonl","final_testset/RE_ex_free.jsonl"]
 # 加载模型
@@ -46,6 +41,10 @@ tokenizer = AutoTokenizer.from_pretrained(
     # llama不支持fast
     use_fast=False if model.config.model_type == 'llama' else True
 )
+if tokenizer.__class__.__name__ == 'QWenTokenizer':
+    tokenizer.pad_token_id = tokenizer.eod_id
+    tokenizer.bos_token_id = tokenizer.eod_id
+    tokenizer.eos_token_id = tokenizer.eod_id
 def get_result_for_cmeee(response):
     if response == '':
         return []
@@ -97,8 +96,11 @@ def generate(
         conversation.append({"from": "user", "value": user_his})
         conversation.append({"from": "assistant", "value": assist_his})
     conversation.append({"from": "user", "value": message})
-    data_dict = preprocess([conversation], tokenizer, 1024, test_flag = False,multiturn_flag=True,history_max_len=history_max_len)    
+    print(conversation)
+    data_dict = preprocess([conversation], tokenizer, max_len=1024, test_flag = False,multiturn_flag=True,history_max_len=history_max_len)    
+    print(data_dict)
     input_ids = data_dict["input_ids"]
+    print(input_ids)
     input_ids = torch.tensor(input_ids, dtype=torch.int).to(device=device)
     with torch.no_grad():
         outputs = model.generate(
@@ -112,21 +114,23 @@ def generate(
     return history,response
 if __name__ == '__main__':
     for test_path in test_paths:
-        test_name = test_path.split('.')[0]
-        test_output_path = "test_ouput/" + test_name + ".jsonl"
+        test_name = test_path.split('.')[0].split("/")[1]
+        test_output_path = "test_output/" + test_name + ".jsonl"
+        if not os.path.exists("test_output"):
+            os.mkdir("test_output")
         with open(test_path,'r') as test_file, open(test_output_path,'w') as test_output_file:
-            test_name = test_path.split('.')[0]
-            for line in test_file:
+            for line in tqdm(test_file):
                 line = line.strip('\n')
                 one_sample = json.loads(line)
                 history = []
                 conversation = one_sample["conversation"]
                 for conver in conversation:
-                    human = conver[human]
-                    if test_name == "NER_testset_free":
+                    human = conver["human"]
+                    if test_name == "NER_testset_free" or test_name == "NER_ex_free":
                         new_human = "在下述文本中标记出医学实体：\n" + human
-                        history,response = generate(message=new_human, history=history)
-                    elif test_name == "RE_testset_free":
+                        print(new_human)
+                        history,response = generate(message=new_human, history=history,max_new_tokens=max_new_tokens,temperature=temperature,top_p=top_p)
+                    elif test_name == "RE_testset_free" or test_name == "RE_ex_free":
                         new_human = "实体关系抽取：\n" + human
                         history,response = generate(message=new_human, history=history)
                     else:
@@ -139,8 +143,8 @@ if __name__ == '__main__':
                             final_response += type_relation + '\n'
                         response = final_response
                         conver["assistant"] = response
-            json.dump(one_sample,test_output_file,ensure_ascii=False)
-            json.dump('\n',test_output_file,ensure_ascii=False)
+                json.dump(one_sample,test_output_file,ensure_ascii=False)
+                json.dump('\n',test_output_file,ensure_ascii=False)
     
 
 

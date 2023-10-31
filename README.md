@@ -161,7 +161,6 @@ PEFT:https://zhuanlan.zhihu.com/p/649776098
 --logging_steps 50 
 --evaluation_strategy steps 
 --eval_steps 0.5/epoch (小于1是比例， 大于1是具体步长) 
---label_name 
 
 # 分工（先写下具体项目，答辩前分一下）
 - generate策略选取()

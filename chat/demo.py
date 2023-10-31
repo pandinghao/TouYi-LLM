@@ -1,9 +1,36 @@
 import gradio as gr
 import re
 # from TouyiModel import generate_response
+from transformers import AutoTokenizer
+import torch
 
+import sys
+sys.path.append("./")
+from utils import ModelUtils
+from finetune import make_supervised_data_module,preprocess
 
+model_name_or_path = "Qwen_model/Qwen/Qwen-7B"      # Qwen模型权重路径
+adapter_name_or_path = "/root/autodl-tmp/output_qwen_stage2_1030"     # sft后adapter权重路径
+load_in_4bit = False
+device = 'cuda:0'
+model = ModelUtils.load_model(
+    model_name_or_path,
+    load_in_4bit=load_in_4bit,
+    adapter_name_or_path=adapter_name_or_path
+).eval()
 
+tokenizer = AutoTokenizer.from_pretrained(
+    model_name_or_path,
+    trust_remote_code=True,
+    padding_side='left',
+    # llama不支持fast
+    use_fast=False if model.config.model_type == 'llama' else True
+)
+if tokenizer.__class__.__name__ == 'QWenTokenizer':
+    tokenizer.pad_token_id = tokenizer.eod_id
+    tokenizer.bos_token_id = tokenizer.eod_id
+    tokenizer.eos_token_id = tokenizer.eod_id
+#
 TOUYI_DES = """
 <br>
 <div align="center" style="font-size: 13pt;">
@@ -98,15 +125,38 @@ def generate(
     if not check_ch_en(message):
         generator = "您的输入无效，请重新输入，谢谢！"
         return  history+[(message.replace('\n', '\n\n'), generator)]
-    
+    # 生成超参配置n
+    repetition_penalty = 1.0
+    history_max_len = 1000  # 模型记忆的最大token长度
+    conversation = list()
+    for user_his, assist_his in history:
+        conversation.append({"from": "user", "value": user_his})
+        conversation.append({"from": "assistant", "value": assist_his})
+    conversation.append({"from": "user", "value": message})
+    #print("conversation:")
+    #print(conversation)
+    data_dict = preprocess([conversation], tokenizer, 1024, test_flag = False,multiturn_flag=True,history_max_len=history_max_len)    
+    input_ids = data_dict["input_ids"]
+    #print(input_ids)
+    input_ids = torch.tensor(input_ids, dtype=torch.int).to(device=device)
+    with torch.no_grad():
+        outputs = model.generate(
+            input_ids=input_ids, max_new_tokens=max_new_tokens, do_sample=True,
+            top_p=top_p, temperature=temperature, repetition_penalty=repetition_penalty,
+            eos_token_id=tokenizer.eos_token_id
+        )
+    #print("outputs")
+    #print(outputs)
+    outputs = outputs.tolist()[0][len(input_ids[0]):]
+    response = tokenizer.decode(outputs,skip_special_tokens = True)
+    generator = remove_continuous_duplicate_sentences(response)
+    #print(response)
+    history.append((message,response))
+    #print(history)
     # 检查history中是否包含了后处理的信息
     history = Delete_Specified_String(history)
-
     # generator = generate_response(message, history, max_new_tokens, temperature, top_p)
-
-    generator = remove_continuous_duplicate_sentences(generator)
-
-    history.append((message.replace('\n', '\n\n'),generator))
+    #history.append((message,generator))
     return history
 
 
@@ -117,7 +167,7 @@ with gr.Blocks(css = custom_css) as demo:
         with gr.Column():
             gr.Markdown("# Touyi Sparse Finetuned Demo")
             gr.Markdown(TOUYI_DES)
-            gr.Image("/home/sda/wangzhijun/LLM_Task/LLM_code/test.jpg", elem_id="banner-image", show_label=False, container=False)
+            gr.Image("chat/test.jpg", elem_id="banner-image", show_label=False, container=False)
         with gr.Column():
             gr.Markdown("""### Touyi Sparse Finetuned Demo""")
 
@@ -273,4 +323,4 @@ with gr.Blocks(css = custom_css) as demo:
 
 
 
-demo.queue().launch(server_name="0.0.0.0", server_port=1222)
+demo.queue().launch(server_name="0.0.0.0", server_port=1222,share=True)

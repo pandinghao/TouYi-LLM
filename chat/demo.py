@@ -10,7 +10,7 @@ from utils import ModelUtils
 from finetune import make_supervised_data_module,preprocess
 
 model_name_or_path = "Qwen_model/Qwen/Qwen-7B"      # Qwen模型权重路径
-adapter_name_or_path = "/root/autodl-tmp/output_qwen_stage2_1030"     # sft后adapter权重路径
+adapter_name_or_path = "/root/autodl-tmp/output_qwen_stage2_1030/checkpoint-21926"    # sft后adapter权重路径
 load_in_4bit = False
 device = 'cuda:0'
 model = ModelUtils.load_model(
@@ -31,20 +31,35 @@ if tokenizer.__class__.__name__ == 'QWenTokenizer':
     tokenizer.bos_token_id = tokenizer.eod_id
     tokenizer.eos_token_id = tokenizer.eod_id
 #
+
 TOUYI_DES = """
+<font size=4>✌️<b style="color: red">自主框架搭建： </b>完全脱离流萤工具，基于Trainer独立实现训练过程</font>
 <br>
-<div align="center" style="font-size: 13pt;">
-&nbsp;&nbsp;<img src="https://pic.imgdb.cn/item/651401a4c458853aef46f7f5.png" style="width: 13pt; display: inline-block;"> <a href="https://github.com/pandinghao/TouYi-LLM">Github</a>
+<font size=4>🙌<b style="color: red">微调算法调整： </b>采用的qlora微调方法中，除了全连接层外，还添加了LN head参数</font>
+<br>
+<font size=4>👆<b style="color: red">训练验证并发： </b>重写Trainer中EvalPrediction方法，实现边训练边验证指标验证</font>
+<br>
+<font size=4>👍<b style="color: red">训练方法设计： </b>两阶段训练，先任务后对话，防止对话数据过拟合</font>
+<br>
+<font size=4>⭐<b style="color: red">BM25检索增强： </b>针对任务进行检索得到demonstration，加入训练的样例中</font>
+<br>
+<br>
+<div style="font-size: 13pt;">
+<font size=4>🚩<b style="color: red">TouYi项目地址： </b>我们的项目已经在<img src="https://pic.imgdb.cn/item/651401a4c458853aef46f7f5.png" style="width: 13pt; display: inline-block;"> <a href="https://github.com/pandinghao/TouYi-LLM">https://github.com/pandinghao/TouYi-LLM</a>上开源
 <br>
 """
 
+
+NEWLINES = """
+<br>
+
+"""
 
 custom_css = """
 #banner-image {
     margin-left: auto;
     margin-right: auto;
-    width: 70px;
-    height: 80px
+    
 }
 """
 
@@ -167,6 +182,8 @@ with gr.Blocks(css = custom_css) as demo:
         with gr.Column():
             gr.Markdown("# Touyi Sparse Finetuned Demo")
             gr.Markdown(TOUYI_DES)
+            gr.Markdown(NEWLINES)
+            gr.Markdown("# NER、RE任务F1评分展示：")
             gr.Image("chat/test.jpg", elem_id="banner-image", show_label=False, container=False)
         with gr.Column():
             gr.Markdown("""### Touyi Sparse Finetuned Demo""")

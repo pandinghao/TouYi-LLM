@@ -58,8 +58,12 @@ NEWLINES = """
 custom_css = """
 #banner-image {
     margin-left: auto;
-    margin-right: auto;
-    
+    margin-right: auto; 
+}
+
+#loss-image {
+    margin-left: auto;
+    margin-right: auto; 
 }
 """
 
@@ -184,7 +188,10 @@ with gr.Blocks(css = custom_css) as demo:
             gr.Markdown(TOUYI_DES)
             gr.Markdown(NEWLINES)
             gr.Markdown("# NER、RE任务F1评分展示：")
-            gr.Image("chat/test.jpg", elem_id="banner-image", show_label=False, container=False)
+            gr.Image("chat/F1.png", elem_id="banner-image", show_label=False, container=False)
+            gr.Markdown(NEWLINES)
+            gr.Markdown("# 训练过程Loss展示：")
+            gr.Image("chat/loss.png", elem_id="loss-image", show_label=False, container=False)
         with gr.Column():
             gr.Markdown("""### Touyi Sparse Finetuned Demo""")
 
@@ -192,7 +199,7 @@ with gr.Blocks(css = custom_css) as demo:
                 chatbot = gr.Chatbot(
                     label = 'Chatbot',
                     bubble_full_width=False,
-                    avatar_images=("TouYi-LLM/chat/patient.png", "TouYi-LLM/chat/doctor.png"),
+                    avatar_images=("chat/patient.jpg", "chat/doctor.jpg"),
                     height=600    
                 )
 
@@ -207,22 +214,34 @@ with gr.Blocks(css = custom_css) as demo:
             with gr.Row():
                 retry_button = gr.Button('🔄  Retry', variant='secondary')
                 undo_button = gr.Button('↩️ Undo', variant='secondary')
-                clear_button = gr.Button('🗑️  Clear', variant='secondary')
+                clear_button = gr.Button('🗑️  Clean', variant='secondary')
                 submit_button = gr.Button('🚩 Submit',variant='primary')
 
 
 
-            gr.Examples(
-            examples=[
-                '最近肚子总是隐隐作痛，感觉胀胀的，吃下去的东西都没法吸收,请问是什么回事？',
-                'What is the best treatment for sleep problems?'
-            ],
-            inputs=textbox,
-            outputs=textbox,
-            fn=process_example,
-            cache_examples=False,
-            label='Question Answering'
-            )
+            with gr.Accordion(label = 'RE Example', open = False):
+                gr.Examples(
+                examples=[
+                    '对下面语句进行关系抽取\n"我国新中国成立前每年约100万新生儿死于破伤风，建国后发病率和死亡率显著下降，但在边远农村、山区及私自接生者新生儿破伤风仍不罕见。 (四)抗生素青霉素: 能杀灭破伤风梭菌，10万~20万u/ (kg·d) ，每天分2次，疗程10天左右。\n关系类型: 阶段，放射治疗，药物治疗，筛查，实验室检查，多发季节，病理分型，多发地区，遗传因素，并发症，同义词，化疗，多发群体，转移部位，病史，风险评估因素，影像学检查，组织学检查，预后生存率，侵及周围组织转移的症状，病理生理，就诊科室，预后状况，外侵部位，高危因素，内窥镜检查，发病机制，相关(导致)，发病率，病因，手术治疗，治疗后症状，鉴别诊断，预防，死亡率，传播途径，发病性别倾向，辅助治疗，相关(症状)，发病年龄，发病部位，临床表现，辅助检查，相关(转化)"',
+                ],
+                inputs=textbox,
+                outputs=[textbox, chatbot],
+                fn=process_example,
+                cache_examples=False,
+                label=""
+                )
+            
+            with gr.Accordion(label = 'NER Example', open = False):
+                gr.Examples(
+                examples=[
+                    '在下述文本中标记出医学实体:\nSARS病理生理过程的关键是全身炎症反应综合征 (SIRS)的不断放大，发生级联反应(cascade)，导致“细胞因子风暴”和“炎症介质瀑布”；也可能发生“肠道细菌移位”和“肠源性内毒素血症”，进而发生感染性休克和组织器官损伤，导致MODS和MOF。\n可识别的实体类型有: 药物，微生物类，医疗设备，身体，医学检验项目，临床表现，医疗程序，疾病，科室',
+                ],
+                inputs=textbox,
+                outputs=[textbox, chatbot],
+                fn=process_example,
+                cache_examples=False,
+                label=""
+                )
 
 
 
@@ -239,7 +258,7 @@ with gr.Blocks(css = custom_css) as demo:
                 minimum=0,
                 maximum=1,
                 step=0.05,
-                value=0.10,
+                value=0.20,
                 interactive=True,
             )
             top_p = gr.Slider(

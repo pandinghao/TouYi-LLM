@@ -192,7 +192,7 @@ with gr.Blocks(css = custom_css) as demo:
                 chatbot = gr.Chatbot(
                     label = 'Chatbot',
                     bubble_full_width=False,
-                    avatar_images=("TouYi-LLM/chat/doctor.png", "TouYi-LLM/chat/patient.png"),
+                    avatar_images=("TouYi-LLM/chat/patient.png", "TouYi-LLM/chat/doctor.png"),
                     height=600    
                 )
 

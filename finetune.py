@@ -160,7 +160,7 @@ def preprocess(
 
     # Apply prompt templates
     input_ids, targets,attention_mask = [], [],[]
-    for i, source in enumerate(tqdm(sources)):
+    for i, source in enumerate(sources):
         '''
         if roles[source[0]["from"]] != roles["user"]:
             source = source[1:]

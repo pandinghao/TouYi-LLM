@@ -4,6 +4,7 @@ from peft import PeftModel
 import bitsandbytes as bnb
 import os
 import json
+import re
 os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 class ModelUtils(object):
 
@@ -61,3 +62,19 @@ def get_cmeie_map (cmeie_des_path):
         for re_type,_ in rel_type.items():
             rel_to_id[re_type] = len(rel_to_id)
     return rel_to_id
+def remove_continuous_duplicate_sentences(text):
+    
+    sentences = re.split(r'([。,；，\n])', text)
+    
+    # 初始化一个新的文本列表，用于存储去除连续重复句子后的结果
+    new_sentences = [sentences[0]]  # 将第一个句子添加到列表中
+    
+    # 遍历句子列表，仅添加不与前一个句子相同的句子
+    for i in range(2, len(sentences), 2):
+        if sentences[i] != sentences[i - 2]:
+            new_sentences.append(sentences[i - 1] + sentences[i])
+    
+    # 重新构建文本，使用原始标点符号连接句子
+    new_text = ''.join(new_sentences)
+    
+    return new_text

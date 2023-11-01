@@ -10,6 +10,7 @@ from utils import ModelUtils
 import json
 from tqdm import tqdm
 from transformers.trainer_pt_utils import LabelSmoother
+from utils import remove_continuous_duplicate_sentences 
 
 IGNORE_TOKEN_ID = LabelSmoother.ignore_index
 
@@ -26,8 +27,9 @@ top_p = 0.9
 temperature = 0.2
 repetition_penalty = 1.0
 device = 'cuda'
-test_paths = ["final_testset/QA_testset.jsonl","final_testset/RE_testset_free.jsonl","final_testset/NER_testset_free.jsonl"\
-              ,"final_testset/NER_testset_instruct.jsonl","final_testset/RE_testset_instruct.jsonl"]
+#test_paths = ["final_testset/QA_testset.jsonl","final_testset/RE_testset_free.jsonl","final_testset/NER_testset_free.jsonl"\
+             # ,"final_testset/NER_testset_instruct.jsonl","final_testset/RE_testset_instruct.jsonl"]
+test_paths = ["final_testset/MRD_testset.jsonl"]
 # 加载模型
 model = ModelUtils.load_model(
     model_name_or_path,
@@ -111,6 +113,7 @@ def generate(
         )
     outputs = outputs.tolist()[0][len(input_ids[0]):]
     response = tokenizer.decode(outputs, skip_special_tokens = True)
+    response = remove_continuous_duplicate_sentences(response)
     history.append([message,response])
     return history,response
 if __name__ == '__main__':
@@ -128,6 +131,8 @@ if __name__ == '__main__':
                 history = []
                 conversation = one_sample["conversation"]
                 conversation_id = one_sample["conversation_id"]
+                if test_name == "MRD_testset":
+                    results["answer"] = list()
                 for conver in conversation:
                     human = conver["human"]
                     if test_name == "NER_testset_free" or test_name == "NER_ex_free":
@@ -135,6 +140,8 @@ if __name__ == '__main__':
                         #print(new_human)
                     elif test_name == "RE_testset_free" or test_name == "RE_ex_free":
                         new_human = "实体关系抽取：\n" + human
+                    else:
+                        new_human = human
                     history,response = generate(message=new_human, history=history,max_new_tokens=max_new_tokens,temperature=temperature,top_p=top_p)
                     if test_name == "RE_ex_free" or test_name == "RE_testset_free" or test_name == "RE_testset_instruct":
                         response = response.replace(":","：")
@@ -150,7 +157,10 @@ if __name__ == '__main__':
                             response = ""
                     conver["assistant"] = response
                     results["conversation_id"] = conversation_id
-                    results["answer"] = response
+                    if test_name == "MRD_testset":
+                        results["answer"].append(response)
+                    else:
+                        results["answer"] = response
                 json.dump(results,test_output_file,ensure_ascii=False)
                 test_output_file.write('\n')
     

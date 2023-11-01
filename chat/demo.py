@@ -149,7 +149,7 @@ def generate(
     #print(outputs)
     outputs = outputs.tolist()[0][len(input_ids[0]):]
     response = tokenizer.decode(outputs,skip_special_tokens = True)
-    generator = remove_continuous_duplicate_sentences(response)
+    response = remove_continuous_duplicate_sentences(response)
     #print(response)
     history.append((message,response))
     #print(history)
@@ -321,6 +321,5 @@ with gr.Blocks(css = custom_css) as demo:
         api_name=False,
     )
 
-
-
-demo.queue().launch(server_name="0.0.0.0", server_port=6006)
+if __name__ == '__main__':
+    demo.queue().launch(server_name="0.0.0.0", server_port=6006)

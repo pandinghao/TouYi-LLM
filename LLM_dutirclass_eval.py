@@ -8,7 +8,9 @@ def str2dict(strlabel,task_name="NER"):
     for element in split_list:
         element = element.strip()
         if '：' in element:
-            entity_type, entities_raw = element.split('：')
+            # entity_type, entities_raw = element.split('：')
+            entity_type = element.split('：')[0]
+            entities_raw = '：'.join(element.split('：')[1:])
             entities = []
             if '; ' in entities_raw:
                 entities_raw_list = entities_raw.split('; ')

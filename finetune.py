@@ -381,7 +381,7 @@ def train():
     model = AutoModelForCausalLM.from_pretrained(
         model_args.model_name_or_path,
         config=config,
-        load_in_4bit=True,
+        load_in_4bit=False,
         torch_dtype=torch.float16,
         cache_dir=training_args.cache_dir,
         device_map=device_map,
@@ -393,7 +393,8 @@ def train():
             bnb_4bit_quant_type="nf4",
             llm_int8_threshold=6.0,
             llm_int8_has_fp16_weight=False,
-        )
+        )if training_args.use_lora and lora_args.q_lora
+        else None
         #quantization_config=GPTQConfig(
         #    bits=4, disable_exllama=True
         #)

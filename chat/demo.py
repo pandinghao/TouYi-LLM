@@ -35,13 +35,13 @@ if tokenizer.__class__.__name__ == 'QWenTokenizer':
 TOUYI_DES = """
 <font size=4>✌️<b style="color: red">自主框架搭建： </b>完全脱离流萤工具，基于Trainer独立实现训练过程</font>
 <br>
-<font size=4>🙌<b style="color: red">微调算法调整： </b>采用的qlora微调方法中，除了全连接层外，还添加了LN head参数</font>
+<font size=4>🙌<b style="color: red">训练过程可视化： </b>新框架能够观测训练集指标、验证集各任务各项指标的变化</font>
 <br>
-<font size=4>👆<b style="color: red">训练验证并发： </b>重写Trainer中EvalPrediction方法，实现边训练边验证指标验证</font>
+<font size=4>👆<b style="color: red">训练验证并发： </b>实现TouYiTrainer子类，实现边训练边多任务多指标验证</font>
 <br>
-<font size=4>👍<b style="color: red">训练方法设计： </b>两阶段训练，先任务后对话，防止对话数据过拟合</font>
+<font size=4>👍<b style="color: red">分阶段训练： </b>两阶段训练，先任务后对话，防止对话数据过拟合</font>
 <br>
-<font size=4>⭐<b style="color: red">BM25检索增强： </b>针对任务进行检索得到demonstration，加入训练的样例中</font>
+<font size=4>⭐<b style="color: red">可视化交互展示系统： </b>欢迎大家不断使用，促使我们持续进步</font>
 <br>
 <br>
 <div style="font-size: 13pt;">
@@ -184,7 +184,7 @@ def generate(
 with gr.Blocks(css = custom_css) as demo:
     with gr.Row():
         with gr.Column():
-            gr.Markdown("# Touyi Sparse Finetuned Demo")
+            gr.Markdown("# 头一（TouYi）展示系统")
             gr.Markdown(TOUYI_DES)
             gr.Markdown(NEWLINES)
             gr.Markdown("# NER、RE任务F1评分展示：")
@@ -193,7 +193,7 @@ with gr.Blocks(css = custom_css) as demo:
             gr.Markdown("# 训练过程Loss展示：")
             gr.Image("chat/loss.png", elem_id="loss-image", show_label=False, container=False)
         with gr.Column():
-            gr.Markdown("""### Touyi Sparse Finetuned Demo""")
+            gr.Markdown("""### 头一（TouYi）展示系统""")
 
             with gr.Group():
                 chatbot = gr.Chatbot(
@@ -206,7 +206,7 @@ with gr.Blocks(css = custom_css) as demo:
                 textbox = gr.Textbox(
                     container=False,
                     show_label=False,
-                    placeholder="头一无敌",
+                    placeholder="请输入文本...",
                     lines=6
                 )
 
@@ -258,7 +258,7 @@ with gr.Blocks(css = custom_css) as demo:
                 minimum=0,
                 maximum=1,
                 step=0.05,
-                value=0.20,
+                value=0.80,
                 interactive=True,
             )
             top_p = gr.Slider(
